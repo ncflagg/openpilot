@@ -133,7 +133,14 @@ class CarState(object):
     self.a_ego = float(v_ego_x[1])
     self.standstill = not self.v_wheel > 0.001
 
-    self.angle_steers = cp.vl["STEER_ANGLE_SENSOR"]['STEER_ANGLE'] + cp.vl["STEER_ANGLE_SENSOR"]['STEER_FRACTION']
+    # STEER_FRACTION must be scaled (0 to 1.4) vs (-0.7 to +0.7)
+    self.angle_steers = cp.vl["STEER_ANGLE_SENSOR"]['STEER_ANGLE']
+    if self.angle_steers > 0:
+      self.scaleSTEER_FRACTION = cp.vl["STEER_ANGLE_SENSOR"]['STEER_FRACTION'] + 0.7
+    else:
+      self.scaleSTEER_FRACTION = cp.vl["STEER_ANGLE_SENSOR"]['STEER_FRACTION'] - 0.7
+    self.angle_steers = self.angle_steers + self.scaleSTEER_FRACTION + 0.0
+
     self.angle_steers_rate = cp.vl["STEER_ANGLE_SENSOR"]['STEER_RATE']
     can_gear = int(cp.vl["GEAR_PACKET"]['GEAR'])
     self.gear_shifter = parse_gear_shifter(can_gear, self.shifter_values)
