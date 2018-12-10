@@ -79,8 +79,8 @@ class CarInterface(object):
     if candidate == CAR.PRIUS:
       ret.safetyParam = 66  # see conversion factor for STEER_TORQUE_EPS in dbc file
       ret.wheelbase = 2.70
-      ret.steerRatio = 15.00   # unknown end-to-end spec
-      tire_stiffness_factor = 3.0   # hand-tune
+      ret.steerRatio = 13.40   # unknown end-to-end spec
+      tire_stiffness_factor = 0.61   # hand-tune
       ret.mass = 3375 * CV.LB_TO_KG + std_cargo
       ret.steerKpV, ret.steerKiV = [[0.4], [0.01]]
       ret.steerKf = 0.000078   # full torque for 10 deg at 80mph means 0.00007818594

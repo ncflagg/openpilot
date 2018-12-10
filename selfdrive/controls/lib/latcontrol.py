@@ -50,11 +50,15 @@ class LatControl(object):
     self.angle_steers_des_time = 0.0
 
     # For Variable Steering Ratio
-    self.lowSteerRatio = 6.5
-    self.variableSteerRatio = 0.0
-    self.angle_Check = 0.0
-    self.manual_Steering_Offset = 0.0
-    
+    self.lowSteerRatio = 6.0           # Set the lowest possible steering ratio allowed
+    self.vsrWindowLow = 0.3            # Set the tire/car angle low-end used for VSR (vsrWindowLow - is same as lowSteerRatio)
+    self.vsrWindowHigh = 0.75          # Set the tire/car angle high-end (vsrWindowHigh + is same as CP.steerRatio / interface.py)
+    self.manual_Steering_Offset = 0.0  # Set a steering wheel offset. (Should this be * steering ratio to get the steering wheel angle?)
+    self.variableSteerRatio = 0.0      # Used to store the calculated steering ratio
+    self.angle_Check = 0.0             # Used for desired tire/car angle
+    self.vsrSlope = 0.0                # Used for slope intercept formula
+    self.vsrYIntercept = 0.0           # Used for slope intercept formula
+
   def reset(self):
     self.pid.reset()
 
@@ -80,19 +84,23 @@ class LatControl(object):
                           l_poly, r_poly, p_poly,
                           PL.PP.l_prob, PL.PP.r_prob, PL.PP.p_prob, curvature_factor, v_ego_mpc, PL.PP.lane_width)
 
-      # Prius (and Prime) appears to have a variable steering ratio. Try to account for that.
+      # Prius (and Prime) appears to have a variable steering ratio. Try to account for that
       # Random maths:
       #  https://www.desmos.com/calculator
       #  https://www.calculator.net/slope-calculator.html
-      #  (wheel angle / steering ratio) = tire angle ..
-      # So, if the calculation below is determining the tire angle, look for values under about 1.5 degrees.
-
+      #  (steering wheel angle / steering ratio) = tire angle ..
+      # So, if the calculation below is determining the tire angle, look for values under about 1.5 degrees
       self.angle_Check = angle_steers - angle_offset
-      if abs(self.angle_Check) < 0.3 :                # 0.3 degrees
-        self.variableSteerRatio = self.lowSteerRatio  # Use the lower ratio
-      elif 0.3 < abs(self.angle_Check) < 1.0:        # The VSR transition zone
-        # Old was self.variableSteerRatio = self.angle_Check / 0.1
-        self.variableSteerRatio = (self.angle_Check + 0.112) / 0.08235   # This is the _variable_ part
+      if abs(self.angle_Check) < self.vsrWindowLow :                        # 0.3 degrees, for example
+        self.variableSteerRatio = self.lowSteerRatio                        # Use the lower ratio
+      elif self.vsrWindowLow < abs(self.angle_Check) < self.vsrWindowHigh:  # The VSR transition zone
+        # Begin the _variable_ part
+        # Find the slope of the line from the start of the VSR window to the end of the window - ( m = (y1 - y) / (x1 - x) )
+        self.vsrSlope = (self.lowSteerRatio - CP.steerRatio) / (self.vsrWindowLow - self.vsrWindowHigh)
+        # Solve for b (y-intercept) - (b = y - mx)
+        self.vsrYIntercept = (CP.steerRatio - self.vsrSlope) * self.vsrWindowHigh
+        # Use b to find y - (y = mx + b)
+        self.variableSteerRatio = (self.vsrSlope * self.angle_Check) + self.vsrYIntercept
         if not self.lowSteerRatio <= self.variableSteerRatio <= CP.steerRatio:   # Sanity/safety check
           if self.variableSteerRatio < self.lowSteerRatio:
             self.variableSteerRatio = self.lowSteerRatio    # Reset to the low ratio
@@ -100,16 +108,15 @@ class LatControl(object):
             self.variableSteerRatio = CP.steerRatio         # Reset to steerRatio from interface.py
       else:                                                 # The angle is in the quick zone so do nothing
         self.variableSteerRatio = CP.steerRatio             # Use steerRatio from interface.py
-        
+
       # reset to current steer angle if not active or overriding
       if active:
         delta_desired = self.mpc_solution[0].delta[1]
       else:                   # Add a steering offset vs recalibrating steering sensor so it reads near 0
-        delta_desired = math.radians(self.angle_Check + self.manual_Steering_Offset) / self.variableSteerRatio
-
+        delta_desired = math.radians(self.angle_Check) / self.variableSteerRatio
       self.cur_state[0].delta = delta_desired
 
-      self.angle_steers_des_mpc = float(math.degrees(delta_desired * self.variableSteerRatio) + angle_offset)
+      self.angle_steers_des_mpc = float(math.degrees(delta_desired * self.variableSteerRatio) + angle_offset + self.manual_Steering_Offset)
       self.angle_steers_des_time = cur_time
       self.mpc_updated = True
 
