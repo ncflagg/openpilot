@@ -50,9 +50,9 @@ class LatControl(object):
     self.angle_steers_des_time = 0.0
 
     # For Variable Steering Ratio
-    self.lowSteerRatio = 6.0           # Set the lowest possible steering ratio allowed
-    self.vsrWindowLow = 0.3            # Set the tire/car angle low-end used for VSR (vsrWindowLow - is same as lowSteerRatio)
-    self.vsrWindowHigh = 0.75          # Set the tire/car angle high-end (vsrWindowHigh + is same as CP.steerRatio / interface.py)
+    self.lowSteerRatio = 9.0           # Set the lowest possible steering ratio allowed
+    self.vsrWindowLow = 0.1            # Set the tire/car angle low-end used for VSR (vsrWindowLow - is same as lowSteerRatio)
+    self.vsrWindowHigh = 0.65          # Set the tire/car angle high-end (vsrWindowHigh + is same as CP.steerRatio / interface.py)
     self.manual_Steering_Offset = 0.0  # Set a steering wheel offset. (Should this be * steering ratio to get the steering wheel angle?)
     self.variableSteerRatio = 0.0      # Used to store the calculated steering ratio
     self.angle_Check = 0.0             # Used for desired tire/car angle
@@ -75,14 +75,6 @@ class LatControl(object):
       l_poly = libmpc_py.ffi.new("double[4]", list(PL.PP.l_poly))
       r_poly = libmpc_py.ffi.new("double[4]", list(PL.PP.r_poly))
       p_poly = libmpc_py.ffi.new("double[4]", list(PL.PP.p_poly))
-
-      # account for actuation delay
-      self.cur_state = calc_states_after_delay(self.cur_state, v_ego, angle_steers, curvature_factor, CP.steerRatio, CP.steerActuatorDelay)
-
-      v_ego_mpc = max(v_ego, 5.0)  # avoid mpc roughness due to low speed
-      self.libmpc.run_mpc(self.cur_state, self.mpc_solution,
-                          l_poly, r_poly, p_poly,
-                          PL.PP.l_prob, PL.PP.r_prob, PL.PP.p_prob, curvature_factor, v_ego_mpc, PL.PP.lane_width)
 
       # Prius (and Prime) appears to have a variable steering ratio. Try to account for that
       # Random maths:
@@ -108,6 +100,14 @@ class LatControl(object):
             self.variableSteerRatio = CP.steerRatio         # Reset to steerRatio from interface.py
       else:                                                 # The angle is in the quick zone so do nothing
         self.variableSteerRatio = CP.steerRatio             # Use steerRatio from interface.py
+
+      # account for actuation delay
+      self.cur_state = calc_states_after_delay(self.cur_state, v_ego, angle_steers, curvature_factor, self.variableSteerRatio, CP.steerActuatorDelay)
+
+      v_ego_mpc = max(v_ego, 5.0)  # avoid mpc roughness due to low speed
+      self.libmpc.run_mpc(self.cur_state, self.mpc_solution,
+                          l_poly, r_poly, p_poly,
+                          PL.PP.l_prob, PL.PP.r_prob, PL.PP.p_prob, curvature_factor, v_ego_mpc, PL.PP.lane_width)
 
       # reset to current steer angle if not active or overriding
       if active:
