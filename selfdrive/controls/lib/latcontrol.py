@@ -49,6 +49,15 @@ class LatControl(object):
     self.angle_steers_des_prev = 0.0
     self.angle_steers_des_time = 0.0
 
+    # Stuck actuator tracking
+    self.angle_jolt = 1.0                      # When stuck, set the next mpc angle to at least this much, right or left
+    self.stuck_ms = 100                        # Declare actuator stuck after x milliseconds. latcontrol seems to run every 60ms though
+    self.stuck_check1 = 1500.0                 # Save the previously recorded angle_steers (start with impossible value)
+    self.stuck_check2 = 2000.0                 # Check a second, adjeacent angle to detect rapid oscillations
+    self.angle_steers_same = 0                 # Save a total count of near-identical angle_steers values
+    self.stuck_start_time = 9000000000.000000  # Track time since angle_steers has shown the same value (start with far future date)
+    self.actuator_stuck = False                # Track if actuator is likely stuck
+
   def reset(self):
     self.pid.reset()
 
@@ -86,6 +95,71 @@ class LatControl(object):
       self.angle_steers_des_time = cur_time
       self.mpc_updated = True
 
+      # Attempt to determine if steering has stopped moving so we can try and force a move at low angles.
+      # How long has angle_steers been one of two values no more than 0.1 apart?
+      # Cabana graphs for Prius often lands right between two 1/10th numbers.
+
+      if abs(angle_steers) < 3:    # Don't want to interfere with cornering for now. May want to try lowering this value depending on speed
+        if (abs((angle_steers + 1000) - (self.stuck_check1 + 1000)) < 0.04 or abs((angle_steers + 1000) - (self.stuck_check2 + 1000)) < 0.04) and abs((self.stuck_check1 + 1000) - (self.stuck_check2 + 1000)) <= 0.14:
+          self.angle_steers_same += 1
+          if self.stuck_check2 == 2000.0:
+            self.stuck_check2 = angle_steers
+        # Is angle_Steers about 0.1 away from either tracked value AND more than 0.1 away from either?
+        elif (abs((angle_steers + 1000) - (self.stuck_check1 + 1000)) <= 0.14 or (abs(angle_steers + 1000) - (self.stuck_check2 + 1000)) <= 0.14) and (abs((angle_steers + 1000) - (self.stuck_check1 + 1000)) > 0.14 or abs((angle_steers + 1000) - (self.stuck_check2 + 1000)) > 0.14):
+          self.angle_steers_same = 0
+          self.actuator_stuck = False
+          if abs((angle_steers + 1000) - (self.stuck_check1 + 1000)) > 0.14:
+            self.stuck_check2 = 2000.0
+            self.stuck_check1 = angle_steers
+          self.stuck_check2 = angle_steers
+          self.stuck_start_time = sec_since_boot() # Comes from time.time() [via panda] or seconds/nanoseconds since 1970. 0.5095601 = 509560100 nanoseconds
+        elif abs((angle_steers + 1000) - (self.stuck_check1 + 1000)) < 0.04:
+          self.angle_steers_same += 1
+        else:
+          self.angle_steers_same = 0
+          self.actuator_stuck = False
+          self.stuck_check1 = angle_steers
+          self.stuck_check2 = 2000.0
+          self.stuck_start_time = sec_since_boot()
+
+      if self.angle_steers_same and sec_since_boot() - self.stuck_start_time >= self.stuck_ms * 0.001: # Turn ms into sec
+        self.actuator_stuck = True
+
+      # This is where we modify mpc
+
+      if self.actuator_stuck:
+        if (self.angle_steers_des_mpc and angle_steers) or (not self.angle_steers_des_mpc and not angle_steers):
+          # Both are positive or both are negative so use subtraction
+          # Is the difference less than self.angle_jolt in degrees?
+          # This is the positive calculation
+          if 0.01 < abs(self.angle_steers_des_mpc - angle_steers) < self.angle_jolt:        # Don't care if it's zero
+            # Angle falls within angle_jolt window
+            # Is the desired turn, to the left or to the right of the CURRENT position?
+            if self.angle_steers_des_mpc < angle_steers:
+              # It's to the right (smaller number than angle_steers)
+              # Find the difference from 0.5 and make the new angle 0.5d _smaller_ than angle_steers
+              # If we SAVE this difference to a variable, we could use it to immediately turn back to the correct position
+              self.angle_steers_des_mpc = self.angle_steers_des_mpc - float(self.angle_jolt - (self.angle_jolt - abs((self.angle_steers_des_mpc - angle_steers))))
+            else:
+              # It's to the left
+              # Find the difference from 0.5 and make the new angle 0.5d _bigger_ than angle_steers
+              self.angle_steers_des_mpc = self.angle_steers_des_mpc + float(self.angle_jolt - (self.angle_jolt - abs((self.angle_steers_des_mpc - angle_steers))))
+        else:
+          # Only one is negative so use addition
+          # Is the difference less than self.angle_jolt in degrees?
+          # This is the addition calculation
+          if 0.01 < abs(self.angle_steers_des_mpc + angle_steers) < self.angle_jolt:
+            # Angle falls within angle_jolt window
+            # Is the desired turn, to the left or to the right?
+            if self.angle_steers_des_mpc < angle_steers:
+              # It's to the right (smaller number than angle_steers)
+              # Find the difference from 0.5 and make the new angle 0.5d _smaller_ than angle_steers
+              self.angle_steers_des_mpc = self.angle_steers_des_mpc - float(self.angle_jolt - (self.angle_jolt - abs((self.angle_steers_des_mpc + angle_steers))))
+            else:
+              # It's to the left
+              # Find the difference from 0.5 and make the new angle 0.5d _bigger_ than angle_steers
+              self.angle_steers_des_mpc = self.angle_steers_des_mpc + float(self.angle_jolt - (self.angle_jolt - abs((self.angle_steers_des_mpc + angle_steers))))
+
       #  Check for infeasable MPC solution
       self.mpc_nans = np.any(np.isnan(list(self.mpc_solution[0].delta)))
       t = sec_since_boot()
@@ -105,10 +179,6 @@ class LatControl(object):
       # constant for 0.05s.
       #dt = min(cur_time - self.angle_steers_des_time, _DT_MPC + _DT) + _DT  # no greater than dt mpc + dt, to prevent too high extraps
       #self.angle_steers_des = self.angle_steers_des_prev + (dt / _DT_MPC) * (self.angle_steers_des_mpc - self.angle_steers_des_prev)
-
-      # Prius/Prime angle shift for steering stiffness
-      self.angle_steers_des += 0.5
-      angle_steers += 0.5
 
       self.angle_steers_des = self.angle_steers_des_mpc
       steers_max = get_steer_max(CP, v_ego)
