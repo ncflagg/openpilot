@@ -107,7 +107,7 @@ class CarState(object):
                          K=np.matrix([[0.12287673], [0.29666309]]))
     self.v_ego = 0.0
 
-    
+
   def update(self, cp, cp_cam):
 
     params = Params()
@@ -160,11 +160,11 @@ class CarState(object):
     # Mimic "VSR" by increasing the reported angle, near the center
     ####################################################################
     # Use angle_model_bias to bring angle_steers to near zero so we can run it through the mod
-    #print ("angle", self.angle_steers),
-    #print ("learned offset", angle_model_bias),
     if 0.1 < abs(self.angle_steers - angle_model_bias) < 0.65:
+      #print "angle", round(self.angle_steers, 2),
+      #print "learned offset", round(angle_model_bias, 2),
       self.angle_steers -= angle_model_bias
-      print ("angle no offset", self.angle_steers),
+      #print "angle no offset", round(self.angle_steers, 2),
       # Increasing the reported angle tells OP not to turn as much to reach the desired angle
       # One side effect is a dead zone around center
       # Below is a cubic regression equation derived via mycurvefit.com using the below angles
@@ -189,10 +189,10 @@ class CarState(object):
       #  self.angle_steers *= 1.7
       #if 0.43 <= abs(self.angle_steers) < 0.65:
       #  self.angle_steers *= 1.2
-      
-      #print ("new angle", self.angle_steers),
+
+      #print "new angle", round(self.angle_steers, 2),
       self.angle_steers += angle_model_bias  # Put the angle_model_bias back in
-      #print ("angle w offset", self.angle_steers)
+      #print "angle w offset", round(self.angle_steers, 2)
     ####################################################################
 
     self.angle_steers_rate = cp.vl["STEER_ANGLE_SENSOR"]['STEER_RATE']
