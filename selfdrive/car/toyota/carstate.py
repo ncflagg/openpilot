@@ -6,7 +6,7 @@ from selfdrive.car.toyota.values import CAR, DBC, STEER_THRESHOLD
 from common.realtime import sec_since_boot
 from common.params import Params
 import json
-
+import random
 
 def parse_gear_shifter(gear, vals):
 
@@ -114,6 +114,7 @@ class CarState(object):
     controls_params = params.get("ControlsParams")
     controls_params = json.loads(controls_params)
     angle_model_bias = controls_params['angle_model_bias']
+    #angle_offset_average = controls_params['angle_offset_average']
 
     # copy can_valid
     self.can_valid = cp.can_valid
@@ -155,18 +156,28 @@ class CarState(object):
     self.angle_steers = cp.vl["STEER_ANGLE_SENSOR"]['STEER_ANGLE'] + cp.vl["STEER_ANGLE_SENSOR"]['STEER_FRACTION']
 
     # Manual offset
-    # self.angle_steers += 1.25
+    #self.angle_steers += 1.25
 
     # Mimic "VSR" by increasing the reported angle, near the center
     ####################################################################
     # Use angle_model_bias to bring angle_steers to near zero so we can run it through the mod
-    if 0.1 < abs(self.angle_steers - angle_model_bias) < 0.65:
+    if abs(self.angle_steers - angle_model_bias) < 0.65:
       #print "angle", round(self.angle_steers, 2),
-      #print "learned offset", round(angle_model_bias, 2),
+      #print "bias", round(angle_model_bias, 2),
+      #print "avg offset", round(angle_offset_average, 2),
       self.angle_steers -= angle_model_bias
+      #self.angle_steers -= angle_offset_average
+
+      # Randomize the deadzone?
+      #if abs(self.angle_steers) < 0.2:
+      #  self.angle_steers = float(random.randint(-2, 2)) / 10
+      # OR, mirror it
+      #  self.angle_steers *= -1
+
       #print "angle no offset", round(self.angle_steers, 2),
       # Increasing the reported angle tells OP not to turn as much to reach the desired angle
       # One side effect is a dead zone around center
+
       # Below is a cubic regression equation derived via mycurvefit.com using the below angles
       #  Actual              Desired
       #----------------------------------
@@ -180,18 +191,34 @@ class CarState(object):
       #   0.3                0.43
       #   0.5                0.6
       #   0.65               0.65
-      self.angle_steers = -5.75 * 10**-17 + 1.6074 * self.angle_steers + 2.5583 * 10**-17 * self.angle_steers**2 -1.4735 * self.angle_steers**3
+      #self.angle_steers = -5.75 * 10**-17 + 1.6074 * self.angle_steers + 2.5583 * 10**-17 * self.angle_steers**2 -1.4735 * self.angle_steers**3
+
+      # This should be what VSR actually does
+      #  Actual             Desired
+      #----------------------------------
+      # -0.65              -0.967
+      # -0.5               -0.744
+      # -0.3               -0.446
+      # -0.1               -0.149
+      # -0.05              -0.074
+      #  0.05               0.074
+      #  0.1                0.149
+      #  0.3                0.446
+      #  0.5                0.744
+      #  0.65               0.967
+      self.angle_steers = 1.487677 * self.angle_steers - 2.064567 * 10**-17
 
       # Manual dampen code for tuning (instead of the equation)
       #if 0.1 < abs(self.angle_steers) < 0.21:
-      #  self.angle_steers *= 2.2
+      #  self.angle_steers *= 1.9
       #if 0.21 <= abs(self.angle_steers) < 0.43:
-      #  self.angle_steers *= 1.7
+      #  self.angle_steers *= 1.5
       #if 0.43 <= abs(self.angle_steers) < 0.65:
-      #  self.angle_steers *= 1.2
+      #  self.angle_steers *= 1.3
 
       #print "new angle", round(self.angle_steers, 2),
       self.angle_steers += angle_model_bias  # Put the angle_model_bias back in
+      #self.angle_steers += angle_offset_average
       #print "angle w offset", round(self.angle_steers, 2)
     ####################################################################
 
