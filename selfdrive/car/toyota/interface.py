@@ -58,11 +58,11 @@ class CarInterface(object):
     # scale unknown params for other cars
     mass_civic = 2923. * CV.LB_TO_KG + STD_CARGO_KG
     wheelbase_civic = 2.70
-    centerToFront_civic = wheelbase_civic * 0.4
+    centerToFront_civic = wheelbase_civic * 0.5    # 0.4
     centerToRear_civic = wheelbase_civic - centerToFront_civic
     rotationalInertia_civic = 2500
     tireStiffnessFront_civic = 192150
-    tireStiffnessRear_civic = 202500
+    tireStiffnessRear_civic = 192150
 
     ret.steerActuatorDelay = 0.12  # Default delay, Prius has larger delay
     if candidate != CAR.PRIUS:
@@ -73,17 +73,17 @@ class CarInterface(object):
       stop_and_go = True
       ret.safetyParam = 66  # see conversion factor for STEER_TORQUE_EPS in dbc file
       ret.wheelbase = 2.70
-      ret.steerRatio = 15.0   # unknown end-to-end spec
-      tire_stiffness_factor = 0.75   # hand-tune
+      ret.steerRatio = 16.1          # 15.0
+      tire_stiffness_factor = 1.0    # 0.75
       ret.mass = 3375. * CV.LB_TO_KG + STD_CARGO_KG
 
       ret.lateralTuning.init('indi')
-      ret.lateralTuning.indi.innerLoopGain = 4.0          # 4.25
-      ret.lateralTuning.indi.outerLoopGain = 3.0          # 2.5
-      ret.lateralTuning.indi.timeConstant = 3.0           # 3.0
-      ret.lateralTuning.indi.actuatorEffectiveness = 1.35  # 1.2
+      ret.lateralTuning.indi.innerLoopGain = 4.0            # 4.25
+      ret.lateralTuning.indi.outerLoopGain = 3.0            # 2.5
+      ret.lateralTuning.indi.timeConstant = 1.1             # 3.0
+      ret.lateralTuning.indi.actuatorEffectiveness = 1.2    # 1.25
 
-      ret.steerActuatorDelay = 0.5
+      ret.steerActuatorDelay = 0.25                         # 0.5
 
     elif candidate in [CAR.RAV4, CAR.RAV4H]:
       stop_and_go = True if (candidate in CAR.RAV4H) else False
@@ -186,7 +186,7 @@ class CarInterface(object):
       ret.lateralTuning.pid.kf = 0.00007818594
 
     ret.steerRateCost = 1.
-    ret.centerToFront = ret.wheelbase * 0.44
+    ret.centerToFront = ret.wheelbase * 0.5     # 0.44
 
     #detect the Pedal address
     ret.enableGasInterceptor = 0x201 in fingerprint
