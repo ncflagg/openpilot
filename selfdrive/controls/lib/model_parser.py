@@ -14,9 +14,9 @@ class ModelParser(object):
     self.lead_dist, self.lead_prob, self.lead_var = 0, 0, 1
     self._path_pinv = compute_path_pinv()
 
-    self.lane_width_estimate = 3.7
+    self.lane_width_estimate = 3.0
     self.lane_width_certainty = 1.0
-    self.lane_width = 3.7
+    self.lane_width = 3.0
     self.l_prob = 0.
     self.r_prob = 0.
     self.x_points = np.arange(50)
@@ -41,12 +41,13 @@ class ModelParser(object):
 
     # Find current lanewidth
     lr_prob = l_prob * r_prob
-    self.lane_width_certainty += 0.05 * (lr_prob - self.lane_width_certainty)
+    decay_rate = interp(lr_prob, [0., 0.5], [0.1, 0.3])
+    decay_rate *= v_ego / 31.0
+    self.lane_width_certainty += 0.05 * decay_rate * (lr_prob - self.lane_width_certainty)
     current_lane_width = abs(l_poly[3] - r_poly[3])
-    self.lane_width_estimate += 0.005 * (current_lane_width - self.lane_width_estimate)
-    speed_lane_width = interp(v_ego, [0., 31.], [3., 3.8])
-    self.lane_width = self.lane_width_certainty * self.lane_width_estimate + \
-                      (1 - self.lane_width_certainty) * speed_lane_width
+    self.lane_width_estimate += 0.005 * decay_rate * (current_lane_width - self.lane_width_estimate)
+    speed_lane_width = interp(v_ego, [0., 31.], [3.0, 3.6])
+    self.lane_width = self.lane_width_certainty * self.lane_width_estimate + (1.0 - self.lane_width_certainty) * speed_lane_width
 
     self.lead_dist = md.lead.dist
     self.lead_prob = md.lead.prob
@@ -54,7 +55,7 @@ class ModelParser(object):
 
     # compute target path
     self.d_poly, self.c_poly, self.c_prob = calc_desired_path(
-      l_poly, r_poly, p_poly, l_prob, r_prob, p_prob, v_ego, self.lane_width)
+      l_poly, r_poly, np.array(self.d_poly), l_prob, r_prob, p_prob, v_ego, self.lane_width)
 
     self.r_poly = r_poly
     self.r_prob = r_prob
