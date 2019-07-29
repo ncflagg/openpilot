@@ -11,7 +11,8 @@ Theses changes are what I saw the most immediate and obvious benefit:
 
 -Bumping up actuator effectiveness to 1.2
  
- I've made a couple attempts to pull some of my changes one-by-one and nearly lost my work, hence, this saved snapshot to come back to.
+ 
+ I've made a couple attempts to revert some of my changes one-by-one in order to see which ones were really improving things and nearly lost my work, hence, this saved snapshot to come back to.
  
  Something I've done with tire stiffness is causing the value in LiveParameters to never change. I don't consider this a bad thing. The angle offset in LiveParameters still changes too much for my taste so I'll try retarding that further in the future.
  
