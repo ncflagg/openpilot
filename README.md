@@ -6,8 +6,10 @@ An attempt to create a laterally-solid and stable build for the Prius Prime
 After incorporating a lane width mod from Gernby, plus some of my other tuning, I had a drive good enough to warrant saving that work. I don't understand yet which mods are contributing to the good lateral performance.
 
 Theses changes are what I saw the most immediate and obvious benefit:
+
  -Gernby's lane width mod; one (and maybe another) version in particular
- -Bumping up actuator effectiveness to 1.2
+
+-Bumping up actuator effectiveness to 1.2
  
  I've made a couple attempts to pull some of my changes one-by-one and nearly lost my work, hence, this saved snapshot to come back to.
  
