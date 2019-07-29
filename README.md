@@ -3,6 +3,8 @@ openpilot 0.6 Prius Prime INDI tune
 
 An attempt to create a laterally-solid and stable build for the Prius Prime
 
+[![](http://img.youtube.com/vi/lthQ-q9AKCg/0.jpg)](http://www.youtube.com/watch?v=lthQ-q9AKCg "40-45mph video, testing last night (play it at 2x)")
+
 After incorporating a lane width mod from Gernby, plus some of my other tuning, I had a drive good enough to warrant saving that work. I don't understand yet which mods are contributing to the good lateral performance.
 
 Theses changes are what I saw the most immediate and obvious benefit:
