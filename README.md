@@ -27,8 +27,6 @@ Theses changes are what I saw the most immediate and obvious benefit:
  Something I've done with tire stiffness is causing the value in LiveParameters to never change. I don't consider this a bad thing. The angle offset in LiveParameters still changes too much for my taste so I'll try retarding that further in the future.
  
  My /data/params/d/LiveParameters looks something like below, as should yours (other than may the angleOffsetAverage):
-```
-   {"angleOffsetAverage": -1.2, "carFingerprint": "TOYOTA PRIUS 2017", "carVin": "", "steerRatio": 16.1, "stiffnessFactor": 1}
-```
+`{"angleOffsetAverage": -1.2, "carFingerprint": "TOYOTA PRIUS 2017", "carVin": "", "steerRatio": 16.1, "stiffnessFactor": 1}`
 Backup your existing params with:
-`/data/params/d/LiveParameters`
+`cp /data/params/d/LiveParameters /data/params/d/LiveParameters.orig`
