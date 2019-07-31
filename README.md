@@ -21,6 +21,8 @@ Theses changes are what I saw the most immediate and obvious benefit:
  
  -ActuatorDelay to 0.25 to eliminate certain hugging (not the double-yellow recognition)
  
+ -Watch angleOffsetAverage closely in `LiveParameters`. It should stay close to what you have now, to avoid ping pong
+ 
  
  I've made a couple attempts to revert some of my changes one-by-one in order to see which ones were really improving things and nearly lost my work, hence, this saved snapshot to come back to.
  
@@ -28,5 +30,6 @@ Theses changes are what I saw the most immediate and obvious benefit:
  
  My /data/params/d/LiveParameters looks something like below, as should yours (other than may the angleOffsetAverage):
 `{"angleOffsetAverage": -1.2, "carFingerprint": "TOYOTA PRIUS 2017", "carVin": "", "steerRatio": 16.1, "stiffnessFactor": 1}`
+
 Backup your existing params with:
 `cp /data/params/d/LiveParameters /data/params/d/LiveParameters.orig`
