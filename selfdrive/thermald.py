@@ -186,10 +186,10 @@ def thermald_thread():
     msg.thermal.fanSpeed = fan_speed
 
     # thermal logic with hysterisis
-    if max_cpu_temp > 107.:
+    if max_cpu_temp > 107. or bat_temp >= 63.:
       # onroad not allowed
       thermal_status = ThermalStatus.danger
-    elif max_comp_temp > 92.5: # CPU throttling starts around ~90C
+    elif max_comp_temp > 92.5 or bat_temp > 60.: # CPU throttling starts around ~90C
       # hysteresis between onroad not allowed and engage not allowed
       thermal_status = clip(thermal_status, ThermalStatus.red, ThermalStatus.danger)
     elif max_cpu_temp > 87.5:
