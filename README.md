@@ -23,7 +23,7 @@ After incorporating a lane width mod from Gernby, plus some of my other tuning, 
  - `timeConstant` up
 
 #### Issues
- - Some *opposite* lane hugging; meaning, where stock OP might hug the inside of a turn, all the hugging I see (and it's much more rare) is at the outside of the lane. I'm ready to move on to 0.6.2 now and see what replicates and see if the hugging can be eliminated.
+ - Some *opposite* lane hugging; meaning, where stock OP might hug the inside of a turn, all the hugging I see (and it's much more rare) is at the outside of the lane. I'm ready to move on to 0.6.2 now and see what replicates and see if the hugging can be eliminated. The videos above were taken with code close to commit c8859b3d7b9854bd5bd698d38c625a8073c29286 where the learners were still enabled, but slowed. There wasn't any hugging happening at that point, but sometimes the learned values would get a little wacky over time.
  - **Vehicle Parameter Identification Failed** messages on EON while engaged. May be due to the params_learner being crippled. If it's true I'm not really using the fast ao learner at all anyway, might just disable it
 
 <br/>
