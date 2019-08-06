@@ -5,8 +5,8 @@
 
 #define MAX_ANGLE_OFFSET (10.0 * DEGREES_TO_RADIANS)
 #define MAX_ANGLE_OFFSET_TH  (9.0 * DEGREES_TO_RADIANS)
-#define MIN_STIFFNESS 0.6370 //0.58  // 0.7              // 0.5
-#define MAX_STIFFNESS 0.6372  //0.62  // 1.2             // 2.0
+#define MIN_STIFFNESS 0.99   //0.58  // 0.7              // 0.5
+#define MAX_STIFFNESS 1.0    //0.62  // 1.2              // 2.0
 #define MIN_SR 1.0                                       // 0.5
 #define MAX_SR 1.0                                       // 2.0
 #define MIN_SR_TH 1.0                                    // 0.55
