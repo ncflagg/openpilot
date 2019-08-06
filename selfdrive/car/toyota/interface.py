@@ -74,7 +74,7 @@ class CarInterface(object):
       ret.safetyParam = 66  # see conversion factor for STEER_TORQUE_EPS in dbc file
       ret.wheelbase = 2.70
       ret.steerRatio = 15.0
-      tire_stiffness_factor = 0.6371
+      tire_stiffness_factor = 1.0
       ret.mass = 3375. * CV.LB_TO_KG + STD_CARGO_KG
 
       ret.lateralTuning.init('indi')
