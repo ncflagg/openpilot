@@ -11,7 +11,7 @@ V_CRUISE_ENABLE_MIN = 40
 
 class MPC_COST_LAT:
   PATH = 2.2
-  LANE = 0.1
+  LANE = 0.1     # was at 3.0 and wasn't terrible at all
   HEADING = 3.0
   STEER_RATE = 1.0
 
@@ -19,8 +19,8 @@ class MPC_COST_LAT:
 class MPC_COST_LONG:
   TTC = 5.0
   DISTANCE = 1.0
-  ACCELERATION = 10.0
-  JERK = 20.0
+  ACCELERATION = 9.0
+  JERK = 15.0
 
 
 class EventTypes:
