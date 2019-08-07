@@ -1,5 +1,6 @@
 import math
 import numpy as np
+from numpy import interp
 
 from cereal import log
 from common.realtime import DT_CTRL
@@ -7,6 +8,7 @@ from common.numpy_fast import clip
 from selfdrive.car.toyota.carcontroller import SteerLimitParams
 from selfdrive.car import apply_toyota_steer_torque_limits
 from selfdrive.controls.lib.drive_helpers import get_steer_max
+from selfdrive.kegman_conf import kegman_conf
 
 
 class LatControlINDI(object):
@@ -40,6 +42,10 @@ class LatControlINDI(object):
     self.inner_loop_gain = CP.lateralTuning.indi.innerLoopGain
     self.alpha = 1. - DT_CTRL / (self.RC + DT_CTRL)
 
+    # Live Tuning variable init
+    kegman = kegman_conf(CP)
+    self.mpc_frame = 0
+
     self.reset()
 
   def reset(self):
@@ -47,7 +53,33 @@ class LatControlINDI(object):
     self.output_steer = 0.
     self.counter = 0
 
+  # Live tuning
+  def live_tune(self, CP):
+    self.mpc_frame += 1
+    if self.mpc_frame % 300 == 0:
+      # live tuning through /data/openpilot/tune.py overrides interface.py settings
+      kegman = kegman_conf()
+      if True:
+        # Get values
+        self.timeConstant = float(kegman.conf['timeConstant'])
+        self.actuatorEffectiveness = float(kegman.conf['actuatorEffectiveness'])
+        self.outerLoopGain = float(kegman.conf['outerLoopGain'])
+        self.innerLoopGain = float(kegman.conf['innerLoopGain'])
+
+        # Set values
+        self.RC = self.timeConstant
+        self.G = self.actuatorEffectiveness
+        self.outer_loop_gain = self.outerLoopGain
+        self.inner_loop_gain = self.innerLoopGain
+        self.alpha = 1. - DT_CTRL / (self.RC + DT_CTRL)
+
+      self.mpc_frame = 0
+
   def update(self, active, v_ego, angle_steers, angle_steers_rate, steer_override, CP, VM, path_plan):
+
+    # Trigger Live tuning
+    self.live_tune(CP)
+
     # Update Kalman filter
     y = np.matrix([[math.radians(angle_steers)], [math.radians(angle_steers_rate)]])
     self.x = np.dot(self.A_K, self.x) + np.dot(self.K, y)
@@ -62,8 +94,15 @@ class LatControlINDI(object):
       self.output_steer = 0.0
       self.delayed_output = 0.0
     else:
-      self.angle_steers_des = path_plan.angleSteers
+      self.angle_steers_des = path_plan.angleSteers / (interp(abs(path_plan.angleSteers), [0, 10], [1.0, 1.2]))
       self.rate_steers_des = path_plan.rateSteers
+
+      if abs(angle_steers) < 3:
+          self.G = self.actuatorEffectiveness
+          self.RC = self.timeConstant
+      else:
+          self.G = (self.actuatorEffectiveness * 2)
+          self.RC = (self.timeConstant * 2)
 
       steers_des = math.radians(self.angle_steers_des)
       rate_des = math.radians(self.rate_steers_des)

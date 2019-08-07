@@ -77,7 +77,7 @@ BO_ 36 KINEMATICS: 8 XXX
 BO_ 37 STEER_ANGLE_SENSOR: 8 XXX
  SG_ STEER_ANGLE : 3|12@0- (1.5,0) [-500|500] "deg" XXX
  SG_ STEER_FRACTION : 39|4@0- (0.1,0) [-0.7|0.7] "deg" XXX
- SG_ STEER_RATE : 35|12@0- (1,0) [-2000|2000] "deg/s" XXX
+ SG_ STEER_RATE : 35|12@0- (0.01,0) [-2000|2000] "deg/s" XXX
 
 BO_ 166 BRAKE: 8 XXX
  SG_ BRAKE_AMOUNT : 7|8@0+ (1,0) [0|255] "" XXX
@@ -327,6 +327,10 @@ BO_ 610 EPS_STATUS: 8 EPS
 
 BO_ 1083 AUTOPARK_STATUS: 8 IPAS
  SG_ STATE : 7|4@0+ (1,0) [0|15] "" XXX
+
+ BO_ 35 SECONDARY_STEER_ANGLE: 8 XXX
+  SG_ ZORRO_STEER : 7|32@0- (0.004901594652,0) [-500|500] "" XXX
+  SG_ ZORRO_RATE : 39|24@0- (0.004901594652,0) [-500|500] "" XXX
 
 CM_ SG_ 550 BRAKE_PRESSURE "seems prop to pedal force";
 CM_ SG_ 550 BRAKE_POSITION "seems proportional to pedal displacement, unclear the max value of 0x1c8";
