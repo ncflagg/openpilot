@@ -9,11 +9,11 @@ STD_CARGO_KG = 136.
 class CivicParams:
   MASS = 1326. + STD_CARGO_KG
   WHEELBASE = 2.70
-  CENTER_TO_FRONT = WHEELBASE * 0.4
+  CENTER_TO_FRONT = WHEELBASE * 0.4 #60/40
   CENTER_TO_REAR = WHEELBASE - CENTER_TO_FRONT
   ROTATIONAL_INERTIA = 2500
-  TIRE_STIFFNESS_FRONT = 192150
-  TIRE_STIFFNESS_REAR = 202500
+  TIRE_STIFFNESS_FRONT = 120000
+  TIRE_STIFFNESS_REAR = 120000
 
 # TODO: get actual value, for now starting with reasonable value for
 # civic and scaling by mass and wheelbase
@@ -31,7 +31,7 @@ def scale_tire_stiffness(mass, wheelbase, center_to_front, tire_stiffness_factor
                         (center_to_front / wheelbase) / (CivicParams.CENTER_TO_FRONT / CivicParams.WHEELBASE)
 
   return tire_stiffness_front, tire_stiffness_rear
-    
+
 def dbc_dict(pt_dbc, radar_dbc, chassis_dbc=None):
   return {'pt': pt_dbc, 'radar': radar_dbc, 'chassis': chassis_dbc}
 

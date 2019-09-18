@@ -97,15 +97,15 @@ class VehicleModel(object):
       CP: Car Parameters
     """
     # for math readability, convert long names car params into short names
-    self.m = CP.mass
-    self.j = CP.rotationalInertia
-    self.l = CP.wheelbase
-    self.aF = CP.centerToFront
-    self.aR = CP.wheelbase - CP.centerToFront
-    self.chi = CP.steerRatioRear
+    self.m = 1530.874 + 150. #cargo
+    self.j = 1852.
+    self.l = 2.70002
+    self.aF = self.l * 0.44 #1.1880088
+    self.aR = self.l - self.aF #1.5120112
+    self.chi = 0.0
 
-    self.cF_orig = CP.tireStiffnessFront
-    self.cR_orig = CP.tireStiffnessRear
+    self.cF_orig = 120000.
+    self.cR_orig = 120000.
     self.update_params(1.0, CP.steerRatio)
 
   def update_params(self, stiffness_factor, steer_ratio):
