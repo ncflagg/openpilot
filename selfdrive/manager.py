@@ -116,7 +116,7 @@ managed_processes = {
   "visiond": ("selfdrive/visiond", ["./visiond"]),
   "sensord": ("selfdrive/sensord", ["./start_sensord.py"]),
   "gpsd": ("selfdrive/sensord", ["./start_gpsd.py"]),
-  "updated": "selfdrive.updated",
+  #"updated": "selfdrive.updated",
 }
 daemon_processes = {
   "athenad": "selfdrive.athena.athenad",
@@ -143,7 +143,7 @@ persistent_processes = [
   'tombstoned',
   'uploader',
   'ui',
-  'updated',
+  #'updated',
 ]
 
 car_started_processes = [
