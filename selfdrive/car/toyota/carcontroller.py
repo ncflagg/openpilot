@@ -232,6 +232,7 @@ class CarController(object):
       # pcm entered standstill or it's disabled
       self.standstill_req = False
 
+    self.acc_active_prev = CS.main_on
     self.last_steer = apply_steer
     self.last_angle = apply_angle
     self.last_accel = apply_accel
