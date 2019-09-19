@@ -10,17 +10,26 @@ V_CRUISE_ENABLE_MIN = 40
 
 
 class MPC_COST_LAT:
-  PATH = 1.0
+  #PATH = 1.0
   LANE = 3.0
-  HEADING = 1.0
-  STEER_RATE = 1.0
+  #HEADING = 1.0
+  #STEER_RATE = 1.0
+
+  PATH = 0.3
+  HEADING = 0.3
+  STEER_RATE = 0.3
 
 
 class MPC_COST_LONG:
-  TTC = 5.0
-  DISTANCE = 0.1
-  ACCELERATION = 10.0
-  JERK = 20.0
+  #TTC = 5.0
+  #DISTANCE = 0.1
+  #ACCELERATION = 10.0
+  #JERK = 20.0
+
+  TTC = 3.0
+  DISTANCE = 0.5
+  ACCELERATION = 8.0
+  JERK = 15.0
 
 
 class EventTypes:
