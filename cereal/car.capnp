@@ -109,6 +109,7 @@ struct CarState {
   steeringAngle @7 :Float32;   # deg
   steeringRate @15 :Float32;   # deg/s
   steeringTorque @8 :Float32;  # TODO: standardize units
+  steeringTorqueEps @27 :Float32;
   steeringPressed @9 :Bool;    # if the user is using the steering wheel
 
   # cruise state
@@ -319,6 +320,7 @@ struct CarParams {
   rotationalInertia @22 :Float32;    # [kg*m2] body rotational inertia
   tireStiffnessFront @23 :Float32;   # [N/rad] front tire coeff of stiff
   tireStiffnessRear @24 :Float32;    # [N/rad] rear tire coeff of stiff
+  tireStiffnessFactor @41 :Float32; # made-up factor representing tire squishiness
 
   longitudinalTuning @25 :LongitudinalPIDTuning;
   lateralTuning :union {
