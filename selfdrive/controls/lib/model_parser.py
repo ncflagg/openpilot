@@ -69,7 +69,7 @@ class ModelParser(object):
           self.readings.pop(0)
 
     # Don't exit dive
-    if abs(l_poly[3] - r_poly[3]) > lane_width:
+    if abs(l_poly[3] - r_poly[3]) > self.lane_width:
       r_prob = r_prob / interp(l_prob, [0, 1], [1, 3])
 
     self.lead_dist = md.lead.dist

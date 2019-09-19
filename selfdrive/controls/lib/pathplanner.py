@@ -79,9 +79,9 @@ class PathPlanner(object):
     self.p_poly = list(self.MP.p_poly)
 
     if active:
-      self.path_offset_i += self.LP.d_poly[3] / (60.0 * 20.0)
+      self.path_offset_i += self.MP.d_poly[3] / (60.0 * 20.0)
       self.path_offset_i = clip(self.path_offset_i, -0.5,  0.5)
-      self.LP.d_poly[3] += self.path_offset_i
+      self.MP.d_poly[3] += self.path_offset_i
     else:
       self.path_offset_i = 0.0
 
