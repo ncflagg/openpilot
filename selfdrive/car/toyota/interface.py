@@ -298,6 +298,7 @@ class CarInterface(object):
     ret.steeringRate = self.CS.angle_steers_rate
 
     ret.steeringTorque = self.CS.steer_torque_driver
+    ret.steeringTorqueEps = self.CS.steer_torque_motor
     ret.steeringPressed = self.CS.steer_override
 
     # cruise state
