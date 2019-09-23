@@ -31,11 +31,12 @@ class LatControlPID(object):
   def update(self, active, v_ego, angle_steers, angle_steers_rate, eps_torque, steer_override, CP, VM, path_plan, driver_torque):
     # virtualZSS
 
-    print "v_ego:", v_ego, "a_rate:", angle_steers_rate, "eps:", eps_torque, "over:", steer_override, "CP:", CP, "VM:", VM, "pplan:", path_plan, "d_torq:", driver_torque
+    print "v_ego:", v_ego, "a_rate:", angle_steers_rate, "eps:", eps_torque, "over:", steer_override, "d_torq:", driver_torque
+    #"CP:", CP, "VM:", VM, "pplan:", path_plan,
     #print "TSS1 Angle?:", angle_steers
     #print "self TSS1 Angle?:", self.angle_steers
 
-    print "self_o_steer:", self.output_steer
+    #print "self_o_steer:", self.output_steer
 
     self.past_data.append([interp_fast(angle_steers, self.scales['stock_sensor'], [0, 1]), self.output_steer])  # steer command is already 'normalized'
     while len(self.past_data) > self.seq_len:
@@ -70,7 +71,8 @@ class LatControlPID(object):
       deadzone = 0.01
       output_steer = self.pid.update(self.angle_steers_des, angle_steers, check_saturation=(v_ego > 10), override=steer_override,
                                      feedforward=steer_feedforward, speed=v_ego, deadzone=deadzone)
-      print "o_steer:", output_steer
+      #self.output_steer = output_steer
+      print "s_o_steer:", output_steer
       pid_log.active = True
       pid_log.p = self.pid.p
       pid_log.i = self.pid.i
@@ -78,7 +80,7 @@ class LatControlPID(object):
       pid_log.output = output_steer
       pid_log.saturated = bool(self.pid.saturated)
 
-    print round(sec_since_boot(), 2), "mph:", int(round(v_ego * 2.237, 1)), "a_des", round(self.angle_steers_des, 2), "a_steers:", round(angle_steers, 2), "o_steer:", output_steer
+    print round(sec_since_boot(), 2), "mph:", int(round(v_ego * 2.237, 1)), "a_des", round(self.angle_steers_des, 2), "a_steers:", round(angle_steers, 2)
 
 
     self.sat_flag = self.pid.saturated
