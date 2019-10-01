@@ -92,7 +92,7 @@ class PathPlanner(object):
       delta_desired = math.radians(angle_steers - angle_offset_bias) / CP.steerRatio
       rate_desired = 0.0
 
-    self.cur_state[0].delta = delta_desired
+    #self.cur_state[0].delta = delta_desired
 
     self.angle_steers_des_mpc = float(math.degrees(delta_desired * CP.steerRatio) + angle_offset_bias)
 
