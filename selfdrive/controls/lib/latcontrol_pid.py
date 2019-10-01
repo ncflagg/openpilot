@@ -59,7 +59,7 @@ class LatControlPID(object):
   def update(self, active, v_ego, angle_steers, angle_steers_rate, eps_torque, steer_override, CP, VM, path_plan, driver_torque):
     self.TSS1 = angle_steers      # Save for stuck-detection
     print "TSS1:", self.TSS1
-    print "v_ego:", v_ego, "a_rate:", angle_steers_rate, "eps:", eps_torque, "over:", steer_override, "d_torq:", driver_torque
+    #print "v_ego:", v_ego, "a_rate:", angle_steers_rate, "eps:", eps_torque, "over:", steer_override, "d_torq:", driver_torque
     #"CP:", CP, "VM:", VM, "pplan:", path_plan,
     #print "TSS1 Angle?:", angle_steers
     #print "self TSS1 Angle?:", self.angle_steers
@@ -70,7 +70,7 @@ class LatControlPID(object):
     while len(self.past_data) > self.seq_len:
       del self.past_data[0]
 
-    print "past_data:", self.past_data
+    #print "past_data:", self.past_data
 	  
     if len(self.past_data) == self.seq_len:
       angle_steers = interp_fast(float(self.model_wrapper.run_model_time_series([i for x in self.past_data for i in x])), [0.0, 1.0], self.scales['zorro_sensor'])
@@ -109,8 +109,8 @@ class LatControlPID(object):
     # make this a function?
     pulse_trigger = 0.05   #0.1       # minimum requested torque (factor) to trigger pulse width logic
     pulse_height = 0.29 #0.3=450 (w max 1500) # torque value to start with to overcome friction
-    pulse_length = 0.125   #0.1       # length of time (seconds) to max-out to overcome friction
-    pulse_window = 0.2                # total time in sec before another pulse_length is allowed
+    pulse_length = 0.13   #0.1       # length of time (seconds) to max-out to overcome friction
+    pulse_window = 0.26                # total time in sec before another pulse_length is allowed
 
 
     # Tests to try:
@@ -139,10 +139,18 @@ class LatControlPID(object):
 
     # Moving left, or right?
     # could do this with control[x] or angle_des[x] also
-    moving_right = ((self.angle_steers_des + 2000) - (self.TSS1 + 2000)) < -0.15
+    # Compare des against TSS1
+    #moving_right = ((self.angle_steers_des + 2000) - (self.TSS1 + 2000)) < -0.15
+    # Compare des against vZSS
+    moving_right = ((self.angle_steers_des + 2000) - (angle_steers + 2000)) < -0.15
 
     # If stuck
-    if active  and  self.angle_steers_same  and  sec_since_boot() - self.stuck_start_time >= self.stuck_ms * 0.001  and  abs(self.TSS1) < 5.:
+    ##abs(angle_steers) < 5. and \
+    if active and \
+              self.angle_steers_same and \
+              sec_since_boot() - self.stuck_start_time >= self.stuck_ms * 0.001 and \
+              pulse_trigger < abs(output_steer) < pulse_height :
+
       if self.pulse_start_first:
         self.pulse_start = sec_since_boot()
         self.pulse_start_first = False
@@ -160,7 +168,7 @@ class LatControlPID(object):
           output_steer = 1.0 * -pulse_height
           print "Going Right:", output_steer
         # If not much change, do nothing
-        elif 0.15 > ((self.angle_steers_des + 2000) - (self.TSS1 + 2000)) > -0.15:
+        elif 0.15 > ((self.angle_steers_des + 2000) - (angle_steers + 2000)) > -0.15:
           # Do nadda
           print "No movement"
         else:  # Left!
@@ -170,8 +178,13 @@ class LatControlPID(object):
           #  output_steer = 1.1 * pulse_height
           #else:
 
-          output_steer = 1.0 * pulse_height
+          output_steer = 1.3 * pulse_height
           print "Going Left:", output_steer
+
+    else: # cancel pulsing
+      self.pulse_start = -1.
+      self.pulsing = False
+      self.pulse_start_first = True
 
     # if 'going straight', limit total torque
     #if abs(output_steer) < 1.0  and  abs(self.angle_steers_des) < 2.0:
