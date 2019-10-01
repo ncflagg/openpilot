@@ -64,12 +64,12 @@ class CarInterface(object):
       ret.safetyParam = 66  # see conversion factor for STEER_TORQUE_EPS in dbc file
       ret.wheelbase = 2.70
       ret.steerRatio = 13.4   # unknown end-to-end spec
-      tire_stiffness_factor = 0.576
+      tire_stiffness_factor = 0.96
       ret.tireStiffnessFactor = tire_stiffness_factor
       ret.mass = 3375. * CV.LB_TO_KG + STD_CARGO_KG
 
-      ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.3], [0.05]]
-      ret.lateralTuning.pid.kf = 0.00004
+      ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.6], [0.05]]
+      ret.lateralTuning.pid.kf = 0.00006 #0.00004
 
       #ret.lateralTuning.init('indi')
       #ret.lateralTuning.indi.innerLoopGain = 4.0
@@ -77,7 +77,7 @@ class CarInterface(object):
       #ret.lateralTuning.indi.timeConstant = 1.0
       #ret.lateralTuning.indi.actuatorEffectiveness = 1.0
 
-      ret.steerActuatorDelay = 0.2  # 1.0 # disabled
+      ret.steerActuatorDelay = 0.22 # Until I incorporate stuck prediction  # 1.0 # disabled
       ret.centerToFront = ret.wheelbase * 0.44
 
     elif candidate in [CAR.RAV4, CAR.RAV4H]:
