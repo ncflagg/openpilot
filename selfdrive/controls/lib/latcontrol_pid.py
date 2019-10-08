@@ -76,7 +76,10 @@ class LatControlPID(object):
       angle_steers = interp_fast(float(self.model_wrapper.run_model_time_series([i for x in self.past_data for i in x])), [0.0, 1.0], self.scales['zorro_sensor'])
 
     print "vZSS:", angle_steers
-	  
+
+    #angle_steers += 1.1   # Trying adding my offset here too
+    #print "vZSS + offset:", angle_steers
+
     pid_log = log.ControlsState.LateralPIDState.new_message()
     pid_log.steerAngle = float(angle_steers)
     pid_log.steerRate = float(angle_steers_rate)
@@ -108,9 +111,9 @@ class LatControlPID(object):
     # retain self.control over time and send out modulated pulses here
     # make this a function?
     pulse_trigger = 0.05   #0.1       # minimum requested torque (factor) to trigger pulse width logic
-    pulse_height = 0.29 #0.3=450 (w max 1500) # torque value to start with to overcome friction
-    pulse_length = 0.13   #0.1       # length of time (seconds) to max-out to overcome friction
-    pulse_window = 0.26                # total time in sec before another pulse_length is allowed
+    pulse_height = 0.15 #0.3=450 (w max 1500) # torque value to start with to overcome friction
+    pulse_length = 0.05   #0.1       # length of time (seconds) to max-out to overcome friction
+    pulse_window = 0.102                # total time in sec before another pulse_length is allowed
 
 
     # Tests to try:
