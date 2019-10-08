@@ -57,21 +57,29 @@ class PathPlanner(object):
 
   def update(self, sm, CP, VM):
     v_ego = sm['carState'].vEgo
+    # Feed vZSS angle here?
     angle_steers = sm['carState'].steeringAngle
     active = sm['controlsState'].active
 
     #angle_offset_average = sm['liveParameters'].angleOffsetAverage
-    angle_offset_average = -1.2   # Nate's Prius Prime's average
-    angle_offset_bias = sm['controlsState'].angleModelBias + angle_offset_average
+    angle_offset_average = -1.15   # Nate's Prius Prime's average
+    #angle_offset_bias = sm['controlsState'].angleModelBias + angle_offset_average
+    angle_offset_bias = angle_offset_average
     angle_offset = sm['liveParameters'].angleOffset
 
     self.MP.update(v_ego, sm['model'])
 
     # Run MPC
     self.angle_steers_des_prev = self.angle_steers_des_mpc
-    # Need to change this?
+    # just omit this?
     VM.update_params(sm['liveParameters'].stiffnessFactor, sm['liveParameters'].steerRatio)
     curvature_factor = VM.curvature_factor(v_ego)
+    #curvature_factor = 0.29 #0.4 was ok          # Testing setting statically
+    #Might have been way off. Try 0.0076, 0.009, 0.014
+    #curvature_factor = 0.016  # 0.014 - 0.016 seemed nice is straights and turned too much in corners like Z said
+    # I think I've been confusing cfactor with "curvature" a bunch.... :\
+    #curvature_factor = 0.45 ..didnt seem enough either  #0.47 not turning enough
+    curvature_factor = 0.41 # 0.42 may have not been turning enough on the freeway
     self.l_poly = list(self.MP.l_poly)
     self.r_poly = list(self.MP.r_poly)
     self.p_poly = list(self.MP.p_poly)
