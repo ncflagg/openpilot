@@ -38,6 +38,7 @@ class OffsetLearner:
             os.chmod("/data/offset_learned.p", 0o777)
 
     # Pass in override too so fast AB can get reset
+    # Probably should pass in steer_req too
     def update(self, angle_steers=0., d_poly=None, v_ego=0.):
 
         # Slowly-learned angle offset
@@ -48,16 +49,20 @@ class OffsetLearner:
         # That way, I think there's less likelihood of driving on constantly-cambered roads (at least in my area)
         # Still want to try and read some kind of tilt, though
         # Speed is not a calculation factor yet
+
+
+        # Trying flipping +/- d_poly around. Seemed to work in my other test, but seems backwards now
+
         
-        if 12.4 < v_ego:  # 15.6 for 35 #35-55mph  24.6 for 55
+        if 12.0 < v_ego:  # 15.6 for 35 #35-55mph  24.6 for 55
             if angle_steers > 0.1:
                 # Line below doens't work for some reason
                 #self.learned_offset["average"] = -1.2    # Remove this later
                 if abs(angle_steers) < 2.:
-                    self.learned_offset["average"] -= d_poly[3] / self.slow_learning_rate
+                    self.learned_offset["average"] += d_poly[3] / self.slow_learning_rate
             elif angle_steers < -0.1:
                 if abs(angle_steers) < 2.:
-                    self.learned_offset["average"] += d_poly[3] / self.slow_learning_rate
+                    self.learned_offset["average"] -= d_poly[3] / self.slow_learning_rate
         # Why clip it here? Clip is before it's stored?
         self.average_offset = clip(self.learned_offset["average"], -2.0, 2.0)
 
@@ -70,13 +75,13 @@ class OffsetLearner:
         #  -And what if we pull back too much? Pings and pongs
         # Angle doesn't matter
 
-        if v_ego > 12.4:  #28mph      # 15.6  # 35mph
+        if v_ego > 12.0:  #28mph      # 15.6  # 35mph
             if abs(angle_steers - self.average_offset) > 0:
-                self.fast_offset -= d_poly[3] / self.learning_rate
-            else:
                 self.fast_offset += d_poly[3] / self.learning_rate
+            else:
+                self.fast_offset -= d_poly[3] / self.learning_rate
         else:
-            self.fast_offset /= 1.001  # Taper-off
+            self.fast_offset /= 1.001  # Taper-off at 100Hz. Needs more at 20Hz
         self.fast_offset = clip(self.fast_offset, -4.0, 4.0)
 
         self.frame_print += 1

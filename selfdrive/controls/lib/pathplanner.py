@@ -71,15 +71,14 @@ class PathPlanner(object):
     #angle_offset_average = -1.15   # Nate's Prius Prime's average
     #angle_offset_bias = sm['controlsState'].angleModelBias + angle_offset_average
     #angle_offset_bias = angle_offset_average
-    angle_offset = sm['liveParameters'].angleOffset
+    angle_offset = sm['liveParameters'].angleOffset   # from params_learner. Not currently used here
 
 
     if active:
       angle_offset_average, angle_offset_bias = self.offset_learner.update(angle_steers, self.MP.d_poly, v_ego)
     else:
-      angle_offset_bias = 0.
-    #This doesnt actually reset it in the learner
-    # Maybe also reset on steer override
+      angle_offset_bias = 0.    # This doesnt actually reset it in the learner, so largely useless
+                                # Maybe also reset on steer override
 
     self.MP.update(v_ego, sm['model'])
 
@@ -93,7 +92,7 @@ class PathPlanner(object):
     #curvature_factor = 0.016  # 0.014 - 0.016 seemed nice is straights and turned too much in corners like Z said
     # I think I've been confusing cfactor with "curvature" a bunch.... :\
     #curvature_factor = 0.45 ..didnt seem enough either  #0.47 not turning enough
-    curvature_factor = 0.41 # 0.42 may have not been turning enough on the freeway
+    #curvature_factor = 0.41 # 0.42 may have not been turning enough on the freeway
     self.l_poly = list(self.MP.l_poly)
     self.r_poly = list(self.MP.r_poly)
     self.p_poly = list(self.MP.p_poly)
