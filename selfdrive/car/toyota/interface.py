@@ -59,12 +59,12 @@ class CarInterface(object):
     ret.lateralTuning.init('pid')
     ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kpBP = [[0.], [0.]]
 
-    if candidate == CAR.PRIUS:
+    if candidate == CAR.PRIUS:  # PRIME
       stop_and_go = True
       ret.safetyParam = 66  # see conversion factor for STEER_TORQUE_EPS in dbc file
       ret.wheelbase = 2.70
       ret.steerRatio = 13.4   # unknown end-to-end spec
-      tire_stiffness_factor = 0.50222  # For vehicle_model curvature_factor mod
+      tire_stiffness_factor = 16.0  # Might need to be higher
       ret.tireStiffnessFactor = tire_stiffness_factor
       ret.mass = 3375. * CV.LB_TO_KG + STD_CARGO_KG
 
