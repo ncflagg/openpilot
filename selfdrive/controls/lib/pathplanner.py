@@ -9,6 +9,7 @@ from selfdrive.controls.lib.lateral_mpc import libmpc_py
 from selfdrive.controls.lib.drive_helpers import MPC_COST_LAT
 from selfdrive.controls.lib.model_parser import ModelParser
 import selfdrive.messaging as messaging
+from selfdrive.controls.lib.offset_learner import OffsetLearner
 
 LOG_MPC = os.environ.get('LOG_MPC', False)
 
@@ -34,6 +35,9 @@ class PathPlanner(object):
 
     self.setup_mpc(CP.steerRateCost)
     self.solution_invalid_cnt = 0
+    #self.frame = 0        # Unnecessary?
+    #self.frame_print = 0  # Unnecessary?
+    self.offset_learner = OffsetLearner(debug=True)
 
   def setup_mpc(self, steer_rate_cost):
     self.libmpc = libmpc_py.libmpc
@@ -62,10 +66,17 @@ class PathPlanner(object):
     active = sm['controlsState'].active
 
     #angle_offset_average = sm['liveParameters'].angleOffsetAverage
-    angle_offset_average = -1.15   # Nate's Prius Prime's average
+    #angle_offset_average = -1.15   # Nate's Prius Prime's average
     #angle_offset_bias = sm['controlsState'].angleModelBias + angle_offset_average
-    angle_offset_bias = angle_offset_average
+    #angle_offset_bias = angle_offset_average
     angle_offset = sm['liveParameters'].angleOffset
+
+
+    if active:
+      angle_offset_average, angle_offset_bias = self.offset_learner.update(angle_steers, self.MP.d_poly, v_ego)
+    else:
+      angle_offset_bias = 0.
+
 
     self.MP.update(v_ego, sm['model'])
 
