@@ -39,7 +39,7 @@ ParamsLearner::ParamsLearner(cereal::CarParams::Reader car_params,
   min_sr_th = MIN_SR_TH * car_params.getSteerRatio();
   max_sr_th = MAX_SR_TH * car_params.getSteerRatio();
   alpha1 = 0.01 * learning_rate;
-  alpha2 = 0.0005 * learning_rate;
+  alpha2 = 0.000000009 * learning_rate;
   alpha3 = 0.1 * learning_rate;
   alpha4 = 1.0 * learning_rate;
 }
@@ -74,7 +74,8 @@ bool ParamsLearner::update(double psi, double u, double sa) {
   bool valid = fabs(slow_ao) < MAX_ANGLE_OFFSET_TH;
   valid = valid && sR > min_sr_th;
   valid = valid && sR < max_sr_th;
-  return valid;
+  //return valid;
+  return true;
 }
 
 
