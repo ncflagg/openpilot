@@ -58,7 +58,7 @@ class LatControlPID(object):
 
   def update(self, active, v_ego, angle_steers, angle_steers_rate, eps_torque, steer_override, CP, VM, path_plan, driver_torque):
     self.TSS1 = angle_steers      # Save for stuck-detection
-    print "TSS1:", self.TSS1
+    #print "TSS1:", self.TSS1
     #print "v_ego:", v_ego, "a_rate:", angle_steers_rate, "eps:", eps_torque, "over:", steer_override, "d_torq:", driver_torque
     #"CP:", CP, "VM:", VM, "pplan:", path_plan,
     #print "TSS1 Angle?:", angle_steers
@@ -75,7 +75,7 @@ class LatControlPID(object):
     if len(self.past_data) == self.seq_len:
       angle_steers = interp_fast(float(self.model_wrapper.run_model_time_series([i for x in self.past_data for i in x])), [0.0, 1.0], self.scales['zorro_sensor'])
 
-    print "vZSS:", angle_steers
+    #print "vZSS:", angle_steers
 
     #angle_steers += 1.1   # Trying adding my offset here too
     #print "vZSS + offset:", angle_steers
@@ -158,7 +158,7 @@ class LatControlPID(object):
         self.pulse_start = sec_since_boot()
         self.pulse_start_first = False
       if self.pulsing:
-        print "o_steer:", output_steer
+        #print "o_steer:", output_steer
         if moving_right:
           # Pulse less if moving towards zero?
           #if (self.angle_steers_des > 0 and self.TSS1 > 0):
@@ -169,11 +169,12 @@ class LatControlPID(object):
 
           # Mod torque +/- to the set -pulse_height (cuz right)
           output_steer = 1.0 * -pulse_height
-          print "Going Right:", output_steer
+          #print "Going Right:", output_steer
         # If not much change, do nothing
         elif 0.15 > ((self.angle_steers_des + 2000) - (angle_steers + 2000)) > -0.15:
           # Do nadda
-          print "No movement"
+          #print "No movement"
+          abcd = 1
         else:  # Left!
           #if (self.angle_steers_des < 0 and self.TSS1 < 0):
           #  output_steer = 0.9 * pulse_height
@@ -182,7 +183,7 @@ class LatControlPID(object):
           #else:
 
           output_steer = 1.3 * pulse_height
-          print "Going Left:", output_steer
+          #print "Going Left:", output_steer
 
     else: # cancel pulsing
       self.pulse_start = -1.
@@ -233,13 +234,13 @@ class LatControlPID(object):
 
 
     if active  and  self.stuck_debug:
-      print round(sec_since_boot(), 2), "mph:", int(round(v_ego * 2.237, 1)), "a_des", round(self.angle_steers_des, 2), "a_steers:", round(self.TSS1, 2), "s_time:", round(sec_since_boot() - self.stuck_start_time, 2), "o_steer:", output_steer
+      #print round(sec_since_boot(), 2), "mph:", int(round(v_ego * 2.237, 1)), "a_des", round(self.angle_steers_des, 2), "a_steers:", round(self.TSS1, 2), "s_time:", round(sec_since_boot() - self.stuck_start_time, 2), "o_steer:", output_steer
       #print "s_torque", self.stuck_torque, "t_hist:", self.torque_history
 
 
 
       #self.output_steer = output_steer
-      print "s_o_steer:", output_steer
+      #print "s_o_steer:", output_steer
       pid_log.active = True
       pid_log.p = self.pid.p
       pid_log.i = self.pid.i
@@ -247,7 +248,7 @@ class LatControlPID(object):
       pid_log.output = output_steer
       pid_log.saturated = bool(self.pid.saturated)
 
-    print round(sec_since_boot(), 2), "mph:", int(round(v_ego * 2.237, 1)), "a_des", round(self.angle_steers_des, 2), "a_steers:", round(self.TSS1, 2)
+    #print round(sec_since_boot(), 2), "mph:", int(round(v_ego * 2.237, 1)), "a_des", round(self.angle_steers_des, 2), "a_steers:", round(self.TSS1, 2)
 
 
     self.sat_flag = self.pid.saturated
