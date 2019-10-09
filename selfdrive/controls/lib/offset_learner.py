@@ -7,9 +7,9 @@ import os
 # import this module to where you want to use it, such as:
 #   from selfdrive.controls.lib.offset_learner import OffsetLearner
 # create the object:
-#   self.average_offset = OffsetLearner(debug=False)
+#   self.avg_offset = OffsetLearner(debug=False)
 # call the update method:
-#   self.average_offset.update(angle_steers - average_offset, self.LP.d_poly)
+#   self.avg_offset.update(angle_steers - average_offset, self.LP.d_poly)
 # The learned, slow offset saves and loads automatically
 #
 # ncflagg -=adapted from Zorrobyte code=-
@@ -22,7 +22,7 @@ class OffsetLearner:
         self.learning_rate = 8  #400 way too high   #   10 @20Hz. Could've been a hair faster, maybe
         self.slow_learning_rate = 40 #2400  #@20Hz. Z was 12000 for slow curvature and said 100Hz
 
-        self.average_offset = 0.
+        self.avg_offset = 0.
         self.fast_offset = 0.
         self.frame = 0
         self.frame_print = 0
@@ -59,12 +59,12 @@ class OffsetLearner:
                 # Line below doens't work for some reason
                 #self.learned_offset["average"] = -1.2    # Remove this later
                 if abs(angle_steers) < 2.:
-                    self.learned_offset["average"] += d_poly[3] / self.slow_learning_rate
+                    self.learned_offset["average"] -= d_poly[3] / self.slow_learning_rate
             elif angle_steers < -0.1:
                 if abs(angle_steers) < 2.:
-                    self.learned_offset["average"] -= d_poly[3] / self.slow_learning_rate
+                    self.learned_offset["average"] += d_poly[3] / self.slow_learning_rate
         # Why clip it here? Clip is before it's stored?
-        self.average_offset = clip(self.learned_offset["average"], -2.0, 2.0)
+        self.avg_offset = clip(self.learned_offset["average"], -2.0, 2.0)
 
 
         # Fast offset
@@ -76,17 +76,17 @@ class OffsetLearner:
         # Angle doesn't matter
 
         if v_ego > 12.0:  #28mph      # 15.6  # 35mph
-            if abs(angle_steers - self.average_offset) > 0:
-                self.fast_offset += d_poly[3] / self.learning_rate
-            else:
+            if abs(angle_steers - self.avg_offset) > 0:
                 self.fast_offset -= d_poly[3] / self.learning_rate
+            else:
+                self.fast_offset += d_poly[3] / self.learning_rate
         else:
             self.fast_offset /= 1.001  # Taper-off at 100Hz. Needs more at 20Hz
         self.fast_offset = clip(self.fast_offset, -4.0, 4.0)
 
         self.frame_print += 1
         if self.frame_print >= 20:  # every second, at 100Hz
-            print "avg_offset:", self.average_offset, "fast_offset:", self.fast_offset
+            print "avg_offset:", self.avg_offset, "fast_offset:", self.fast_offset
             self.frame_print = 0
 
         self.frame += 1
@@ -98,4 +98,4 @@ class OffsetLearner:
                 csv_file_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
                 csv_file_writer.writerow([self.learned_offset, v_ego])
 
-        return self.average_offset, self.fast_offset
+        return self.avg_offset, self.fast_offset
