@@ -38,6 +38,7 @@ class PathPlanner(object):
     #self.frame = 0        # Unnecessary?
     #self.frame_print = 0  # Unnecessary?
     self.offset_learner = OffsetLearner(debug=True)
+    self.angle_offset_average = 0.  # Because it shouldn't revert to zero in not Active
 
   def setup_mpc(self, steer_rate_cost):
     self.libmpc = libmpc_py.libmpc
@@ -65,6 +66,7 @@ class PathPlanner(object):
     angle_steers = sm['carState'].steeringAngle
     active = sm['controlsState'].active
 
+    angle_offset_average = self.angle_offset_average
     #angle_offset_average = sm['liveParameters'].angleOffsetAverage
     #angle_offset_average = -1.15   # Nate's Prius Prime's average
     #angle_offset_bias = sm['controlsState'].angleModelBias + angle_offset_average
@@ -76,7 +78,8 @@ class PathPlanner(object):
       angle_offset_average, angle_offset_bias = self.offset_learner.update(angle_steers, self.MP.d_poly, v_ego)
     else:
       angle_offset_bias = 0.
-
+    #This doesnt actually reset it in the learner
+    # Maybe also reset on steer override
 
     self.MP.update(v_ego, sm['model'])
 
