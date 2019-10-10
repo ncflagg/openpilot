@@ -66,7 +66,6 @@ class PathPlanner(object):
     angle_steers = sm['carState'].steeringAngle
     active = sm['controlsState'].active
 
-    #angle_offset_average = self.avg_offset  # Shouldn't ever be needed if it starts at zero
     #angle_offset_average = sm['liveParameters'].angleOffsetAverage
     #angle_offset_average = -1.15   # Nate's Prius Prime's average
     #angle_offset_bias = sm['controlsState'].angleModelBias + angle_offset_average
@@ -75,9 +74,11 @@ class PathPlanner(object):
 
 
     if active:
-      angle_offset_average, angle_offset_bias = self.offset_learner.update(angle_steers, self.MP.d_poly, v_ego)
+      # Feed the average to help get the average. I THINK this makes sense
+      angle_offset_average, angle_offset_bias = self.offset_learner.update(angle_steers - self.avg_offset, self.MP.d_poly, v_ego)
     else:
-      angle_offset_bias = 0.    # This doesnt actually reset it in the learner, so largely useless
+      angle_offset_average = self.avg_offset
+      angle_offset_bias = 0.    # This doesnt actually reset it in the learner, so largely just here to prevent fault
                                 # Maybe also reset on steer override
 
     # Before, I was doing it like this:
