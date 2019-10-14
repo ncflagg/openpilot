@@ -100,7 +100,7 @@ managed_processes = {
   "uploader": "selfdrive.loggerd.uploader",
   "deleter": "selfdrive.loggerd.deleter",
   "controlsd": "selfdrive.controls.controlsd",
-  #"plannerd": "selfdrive.controls.plannerd",
+  "plannerd": "selfdrive.controls.plannerd",
   "radard": "selfdrive.controls.radard",
   "ubloxd": ("selfdrive/locationd", ["./ubloxd"]),
   "loggerd": ("selfdrive/loggerd", ["./loggerd"]),
@@ -148,7 +148,7 @@ persistent_processes = [
 
 car_started_processes = [
   'controlsd',
-  #'plannerd',
+  'plannerd',
   'loggerd',
   'sensord',
   'radard',
