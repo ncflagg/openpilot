@@ -19,8 +19,9 @@ class OffsetLearner:
     def __init__(self, debug=False):
 
         # Tunables
-        self.learning_rate = 8  #400 way too high   #   10 @20Hz. Could've been a hair faster, maybe
-        self.slow_learning_rate = 40 #2400  #@20Hz. Z was 12000 for slow curvature and said 100Hz
+        self.learning_rate = 400  #400 way too high   #   10 @20Hz. Could've been a hair faster, maybe
+        self.slow_learning_rate = 1. / 60000.  # 3600 means learn at max rate of 1 deg in 1 minute at 20Hz
+        #200 #2400  #@20Hz. Z was 12000 for slow curvature and said 100Hz
 
         self.avg_offset = 0.
         self.fast_offset = 0.
@@ -55,19 +56,37 @@ class OffsetLearner:
 
         
         if 10.0 < v_ego:  # 15.6 for 35 #35-55mph  24.6 for 55
-            if 0.149 < angle_steers:     # Left, and not at center, so subtract right
+            if 0.149 < angle_steers:  # Left, and not at center, so correct to the right
                 # Line below didn't work for some reason
-                #self.learned_offset["average"] = -1.2    # Remove this later
-                self.learned_offset["average"] -= d_poly[3] / self.slow_learning_rate
-                self.fast_offset               -= d_poly[3] / self.learning_rate
-            elif angle_steers < -0.149:  # Right, and not at center, so add left
-                self.learned_offset["average"] += d_poly[3] / self.slow_learning_rate
-                self.fast_offset               += d_poly[3] / self.learning_rate
+                #self.learned_offset["average"] = -1.2               # Remove this later
+                self.fast_offset += d_poly[3] / self.learning_rate  # d_poly sign is opposite of steering angle
+                #if 0 < angle_steers < 2:         # Learn avg going straight
+                #    self.learned_offset["average"] += self.slow_learning_rate
+            elif angle_steers < -0.149:                             # Right, and not at center, so correct to the left
+                self.fast_offset -= d_poly[3] / self.learning_rate  # d_poly sign is opposite of steering angle
+                #if -2 < angle_steers < 0:       # Learn avg going straight
+                #    self.learned_offset["average"] -= self.slow_learning_rate
+
+            # New AVG idea
+            if abs(angle_steers) < 2:  # Going straight
+                if 0 < d_poly[3]:      # We're to the right of center (d_poly is opposite sign)
+                    self.learned_offset["average"] -= self.slow_learning_rate
+                elif d_poly[3] < 0:    # We're to the left of center
+                    self.learned_offset["average"] += self.slow_learning_rate
+
         else:
-            self.fast_offset /= 1.001  # Taper-off at 100Hz. Needs more at 20Hz
+            self.fast_offset /= 1.01  #1.001  # Taper-off at 100Hz. Needs more at 20Hz
+            # Maybe trigger taper if overshoot detected. I.E. track d_poly in a list mebbe
         self.learned_offset["average"] = clip(self.learned_offset["average"], -2.0, 2.0)
         self.avg_offset = self.learned_offset["average"]
-        self.fast_offset = clip(self.fast_offset, -4.0, 4.0)
+        self.fast_offset = clip(self.fast_offset, -0.5, 0.5)
+
+        # New AVG idea
+        if -2 < angle_steers < 2:  # Going straight
+            if 0 < d_poly[3]:      # We're to the right of center (d_poly is opposite sign)
+                self.learned_offset["average"] -= self.slow_learning_rate
+            elif d_poly[3] < 0:    # We're to the left of center
+                self.learned_offset["average"] += self.slow_learning_rate
 
 
         # Fast offset
@@ -90,7 +109,7 @@ class OffsetLearner:
 
 
         self.frame_print += 1
-        if self.frame_print >= 20:  # every second, at 100Hz
+        if self.frame_print >= 5:  # 20 is every second, at 20Hz
             print "avg_offset:", self.avg_offset, "fast_offset:", self.fast_offset
             self.frame_print = 0
 
@@ -103,4 +122,5 @@ class OffsetLearner:
                 csv_file_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
                 csv_file_writer.writerow([self.learned_offset, v_ego])
 
+        self.fast_offset = 0. # Disable fast learner
         return self.avg_offset, self.fast_offset

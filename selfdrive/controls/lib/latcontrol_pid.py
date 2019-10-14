@@ -74,7 +74,7 @@ class LatControlPID(object):
 	  
     if len(self.past_data) == self.seq_len:
       angle_steers = interp_fast(float(self.model_wrapper.run_model_time_series([i for x in self.past_data for i in x])), [0.0, 1.0], self.scales['zorro_sensor'])
-
+    angle_steers -=0.5  # I've seen some evidence that vZSS is off by +0.5deg
     #print "vZSS:", angle_steers
 
     #angle_steers += 1.1   # Trying adding my offset here too
