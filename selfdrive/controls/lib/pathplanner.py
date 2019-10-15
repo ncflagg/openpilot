@@ -36,13 +36,6 @@ class PathPlanner(object):
     self.setup_mpc(CP.steerRateCost)
     self.solution_invalid_cnt = 0
 
-    self.learning_rate = 60.
-    self.fast_learning_rate = 1. / 600.    # 80, Learn at max rate of 1 deg every 4 sec at 20Hz
-    self.slow_learning_rate = 1. / 72000.  # 72k=1hr. 1200 (20 x 60) means learn at max rate of 1 deg in 1 minute at 20Hz
-    self.avg_offset = 0.0                 # Start near my offset. -now in carstate-
-    self.fast_offset = 0.
-    self.frame_print = 0
-
 
   def setup_mpc(self, steer_rate_cost):
     self.libmpc = libmpc_py.libmpc
@@ -69,59 +62,11 @@ class PathPlanner(object):
     angle_steers = sm['carState'].steeringAngle
     active = sm['controlsState'].active
 
-    #angle_offset_average = sm['liveParameters'].angleOffsetAverage
+    angle_offset_average = sm['liveParameters'].angleOffsetAverage
     #angle_offset_average = -1.15   # Nate's Prius Prime's average
     #angle_offset_bias = sm['controlsState'].angleModelBias + angle_offset_average
-    #angle_offset_bias = angle_offset_average
+    angle_offset_bias = angle_offset_average
     angle_offset = sm['liveParameters'].angleOffset   # from params_learner. Not currently used here
-
-
-
-    # Seems like I could do  abs(angle_steers - self.avg_offset - fast)  here also
-    # When going straight, and a faster learner is working, we're going 0, even though there's camber
-    # Does that effect path planning? I don't think OP knows bout tilt at all
-
-    if active  and  8 < v_ego:
-      if self.MP.d_poly[3] < 0:                                           # Riding left of center (d_poly[3] will be negative)..
-        #self.fast_offset += self.fast_learning_rate # works, but needs to recover faster when centered to avoid overshoot
-        # Mod fO to the right (neg) at a faster rate than the avg
-        # Though, I'm starting to think it might be better to have a fast learner, learning only when the AVG learner is not
-        #self.fast_offset -= self.MP.d_poly[3] / self.learning_rate        # Mod fastO to the right (angle_steers neg)
-        if abs(angle_steers - self.avg_offset) < 3:                       # ..and near center
-          self.avg_offset -= self.slow_learning_rate                      # Mod avg to the right (angle mod will be neg, opposite of d_poly behavior)
-
-        #elif abs(angle_steers - self.avg_offset - self.fast_offset) > 3: # and NOT near center
-        #  self.fast_offset += self.MP.d_poly[3] / self.learning_rate     # Mod fO to the right (neg)
-
-      elif 0 < self.MP.d_poly[3]:                                         # Riding to the right of center (d_poly[3] will be positive)..
-        #self.fast_offset -= self.fast_learning_rate # works               # Mod fO to the left (pos) at a faster rate than the avg
-        #self.fast_offset -= self.MP.d_poly[3] / self.learning_rate
-        if abs(angle_steers - self.avg_offset) < 3:                       # ..and near center
-          self.avg_offset += self.slow_learning_rate                      # Mod avg to the left (angle mod will be pos, opposite of d_poly behavior)
-
-        #elif abs(angle_steers - self.avg_offset - self.fast_offset) > 3:  # and NOT near center
-        #  self.fast_offset -= self.MP.d_poly[3] / self.slow_learning_rate # Mod fO to the left (pos)
-
-    if not active:
-      self.fast_offset = 0.                                               # Kill the fast offset
-
-    if v_ego < 8:
-      self.fast_offset *= 0.99                                            # Kill, slowly
-
-    self.avg_offset  = np.clip(self.avg_offset,  -2.0, 2.0)
-    self.fast_offset = np.clip(self.fast_offset, -0.5, 0.5)               # Limit fast learning for now, or AVG won't learn as much. Actually, that might be IMPORTANT# Will avg work if fast O is running correctly?
-
-
-    if active  and  self.frame_print >= 5  and  8 < v_ego:
-      #print round (sec_since_boot(), 2,), "steer", round(angle_steers, 2), "avg_offset:", round(self.avg_offset, 3), "fast_offset:", round(self.fast_offset, 3), "dpoly3", round(self.MP.d_poly[3], 3)
-      self.frame_print = 0
-    self.frame_print += 1
-
-    angle_offset_average = self.avg_offset
-    angle_offset_bias = angle_offset_average - self.fast_offset   # Not sure about this yet. Might need to be some combination of angle_offset_average and angle_offset_bias if Gernby set angle_offset_bias to avg
-    #angle_offset_bias = angle_offset_average
-
-
 
     self.MP.update(v_ego, sm['model'])
 
