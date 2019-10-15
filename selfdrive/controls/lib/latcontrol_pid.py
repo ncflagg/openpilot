@@ -5,8 +5,6 @@ from cereal import log
 from selfdrive.virtualZSS import virtualZSS_wrapper
 #from selfdrive.kegman_conf import kegman_conf
 from common.realtime import sec_since_boot
-from selfdrive.car import apply_toyota_steer_torque_limits
-from selfdrive.car.toyota.carcontroller import SteerLimitParams
 
 def interp_fast(x, xp, fp):  # extrapolates above range, np.interp does not
   return (((x - xp[0]) * (fp[1] - fp[0])) / (xp[1] - xp[0])) + fp[0]
@@ -76,7 +74,7 @@ class LatControlPID(object):
 	  
     if len(self.past_data) == self.seq_len:
       angle_steers = interp_fast(float(self.model_wrapper.run_model_time_series([i for x in self.past_data for i in x])), [0.0, 1.0], self.scales['zorro_sensor'])
-    angle_steers -=0.5  # I've seen some evidence that vZSS is off by +0.5deg
+    angle_steers # I've seen some evidence that vZSS is off by +0.5deg
     #print "vZSS:", angle_steers
 
     #angle_steers += 1.1   # Trying adding my offset here too
@@ -221,54 +219,6 @@ class LatControlPID(object):
     #if self.pulsing:
       #if not self.pulsing:
       # Pulse started at this time
-
-
-
-    # Attempt to limit steering when not pulsing
-    prev_output_steer_cmd = self.output_steer  # where to put this?
-
-    if not self.pulsing:
-      # Enforce rate limit
-      steer_max = float(SteerLimitParams.STEER_MAX)
-      new_output_steer_cmd = steer_max * output_steer   # NOT self. Probably should rename to pulse_steer or something
-
-
-      #new_output_steer_cmd = apply_toyota_steer_torque_limits(new_output_steer_cmd, prev_output_steer_cmd, prev_output_steer_cmd, SteerLimitParams)
-      #def apply_toyota_steer_torque_limits(apply_torque, apply_torque_last, motor_torque, LIMITS):
-
-      STEER_MAX = 1500
-      STEER_DELTA_UP = 15       # 1.5s time to peak torque
-      STEER_DELTA_DOWN = 15     # always lower than 45 otherwise the Rav4 faults (Prius seems ok with 50)
-      STEER_ERROR_MAX = 550     # max delta between torque cmd and torque motor
-
-      # limits due to comparison of commanded torque VS motor reported torque
-      max_lim = min(max(motor_torque + STEER_ERROR_MAX, STEER_ERROR_MAX), STEER_MAX)
-      min_lim = max(min(motor_torque - STEER_ERROR_MAX, -STEER_ERROR_MAX), -STEER_MAX)
-
-      new_output_steer_cmd = clip(new_output_steer_cmd, min_lim, max_lim)
-
-      # slow rate if steer torque increases in magnitude
-      if prev_output_steer_cmd > 0:
-        new_output_steer_cmd = clip(new_output_steer_cmd,
-                            max(prev_output_steer_cmd - STEER_DELTA_DOWN, -STEER_DELTA_UP),
-                            prev_output_steer_cmd + STEER_DELTA_UP)
-      else:
-        new_output_steer_cmd = clip(new_output_steer_cmd,
-                            prev_output_steer_cmd - STEER_DELTA_UP,
-                            min(prev_output_steer_cmd + STEER_DELTA_DOWN, STEER_DELTA_UP))
-
-      #return int(round(new_output_steer_cmd))
-
-      self.output_steer = int(round(new_output_steer_cmd))
-      self.output_steer = new_output_steer_cmd / steer_max
-      output_steer = self.output_steer
-
-    #These shouldn't be needed but leaving here just in case
-    #steers_max = get_steer_max(CP, v_ego)
-    #self.output_steer = clip(self.output_steer, -steers_max, steers_max)
-
-
-
 
 
     # pulse window status

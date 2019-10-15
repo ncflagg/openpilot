@@ -39,7 +39,7 @@ class PathPlanner(object):
     self.learning_rate = 60.
     self.fast_learning_rate = 1. / 600.    # 80, Learn at max rate of 1 deg every 4 sec at 20Hz
     self.slow_learning_rate = 1. / 72000.  # 72k=1hr. 1200 (20 x 60) means learn at max rate of 1 deg in 1 minute at 20Hz
-    self.avg_offset = -1.2                 # Start near my offset
+    self.avg_offset = 0.0                 # Start near my offset. -now in carstate-
     self.fast_offset = 0.
     self.frame_print = 0
 
