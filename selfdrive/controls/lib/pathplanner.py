@@ -62,12 +62,12 @@ class PathPlanner(object):
     angle_steers = sm['carState'].steeringAngle
     active = sm['controlsState'].active
 
-    #angle_offset_average = sm['liveParameters'].angleOffsetAverage
-    angle_offset_average = 0.0
+    angle_offset_average = sm['liveParameters'].angleOffsetAverage
+    #angle_offset_average = 0.0
     #angle_offset_average = -1.15   # Nate's Prius Prime's average
     #angle_offset_bias = sm['controlsState'].angleModelBias + angle_offset_average
     #angle_offset_bias = angle_offset_average
-    angle_offset = sm['liveParameters'].angleOffset   # from params_learner. Not currently used here
+    angle_offset = sm['liveParameters'].angleOffset   # from params_learner
 
     self.MP.update(v_ego, sm['model'])
 

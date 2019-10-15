@@ -30,6 +30,9 @@ from selfdrive.locationd.calibration_helpers import Calibration, Filter
 ThermalStatus = log.ThermalData.ThermalStatus
 State = log.ControlsState.OpenpilotState
 
+# Try loading average offset in carstate
+lvpm = messaging.SubMaster(['carState', 'controlsState', 'radarState', 'model', 'liveParameters'])
+angle_offset_average = lvpm['liveParameters'].angleOffsetAverage
 
 def isActive(state):
   """Check if the actuators are enabled"""
@@ -352,9 +355,9 @@ def data_send(sm, CS, CI, CP, VM, state, events, actuators, v_cruise_kph, rk, ca
     "vEgo": CS.vEgo,
     "vEgoRaw": CS.vEgoRaw,
     "angleSteers": CS.steeringAngle,
-    #"curvature": VM.calc_curvature((CS.steeringAngle - sm['pathPlan'].angleOffset) * CV.DEG_TO_RAD, CS.vEgo),
+    "curvature": VM.calc_curvature((CS.steeringAngle - sm['pathPlan'].angleOffset) * CV.DEG_TO_RAD, CS.vEgo),
     #"curvature": VM.calc_curvature((CS.steeringAngle) * CV.DEG_TO_RAD, CS.vEgo),
-    "curvature": VM.calc_curvature((CS.steeringAngle) * CV.DEG_TO_RAD, CS.vEgo),  # Re-visit
+    #"curvature": VM.calc_curvature((CS.steeringAngle) * CV.DEG_TO_RAD, CS.vEgo),  # Re-visit
     "steerOverride": CS.steeringPressed,
     "state": state,
     "engageable": not bool(get_events(events, [ET.NO_ENTRY])),
