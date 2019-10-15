@@ -260,6 +260,10 @@ def state_control(frame, rcv_frame, plan, path_plan, CS, CP, state, events, v_cr
   actuators.steer, actuators.steerAngle, lac_log = LaC.update(active, CS.vEgo, CS.steeringAngle, CS.steeringRate,
                                    CS.steeringTorqueEps, CS.steeringPressed, CP, VM, path_plan, CS.steeringTorque)
 
+  # Offset vZSS
+  actuators.steerAngle -= 0.4
+
+
   # Send a "steering required alert" if saturation count has reached the limit
   if LaC.sat_flag and CP.steerLimitAlert:
     AM.add(frame, "steerSaturated", enabled)
