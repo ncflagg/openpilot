@@ -64,7 +64,7 @@ class CarInterface(object):
       ret.safetyParam = 66  # see conversion factor for STEER_TORQUE_EPS in dbc file
       ret.wheelbase = 2.70
       ret.steerRatio = 13.4   # unknown end-to-end spec
-      tire_stiffness_factor = 16.8  # Needs some corner testing, but somewhere in this range for Prime
+      tire_stiffness_factor = 19.75  # Needs some corner testing, but somewhere in this range for Prime
       ret.tireStiffnessFactor = tire_stiffness_factor
       ret.mass = 3375. * CV.LB_TO_KG + STD_CARGO_KG
 
