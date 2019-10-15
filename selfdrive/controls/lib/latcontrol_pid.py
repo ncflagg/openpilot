@@ -5,6 +5,9 @@ from cereal import log
 from selfdrive.virtualZSS import virtualZSS_wrapper
 #from selfdrive.kegman_conf import kegman_conf
 from common.realtime import sec_since_boot
+from selfdrive.car import apply_toyota_steer_torque_limits
+from selfdrive.car.toyota.carcontroller import CustomSteerLimitParams
+
 
 def interp_fast(x, xp, fp):  # extrapolates above range, np.interp does not
   return (((x - xp[0]) * (fp[1] - fp[0])) / (xp[1] - xp[0])) + fp[0]
@@ -15,6 +18,8 @@ class LatControlPID(object):
                             (CP.lateralTuning.pid.kiBP, CP.lateralTuning.pid.kiV),
                             k_f=CP.lateralTuning.pid.kf, pos_limit=1.0)
     self.angle_steers_des = 0.
+
+    self.output_steer_prev = 0.
 
     # virtualZSS
     self.model_wrapper = virtualZSS_wrapper.get_wrapper()
@@ -108,139 +113,158 @@ class LatControlPID(object):
 
 
 
-    # retain self.control over time and send out modulated pulses here
-    # make this a function?
-    pulse_trigger = 0.05   #0.1       # minimum requested torque (factor) to trigger pulse width logic
-    pulse_height = 0.15 #0.3=450 (w max 1500) # torque value to start with to overcome friction
-    pulse_length = 0.05   #0.1       # length of time (seconds) to max-out to overcome friction
-    pulse_window = 0.102                # total time in sec before another pulse_length is allowed
+      # retain self.control over time and send out modulated pulses here
+      # make this a function?
+      pulse_trigger = 0.05   #0.1       # minimum requested torque (factor) to trigger pulse width logic
+      pulse_height = 0.15 #0.3=450 (w max 1500) # torque value to start with to overcome friction
+      pulse_length = 0.05   #0.1       # length of time (seconds) to max-out to overcome friction
+      pulse_window = 0.102                # total time in sec before another pulse_length is allowed
 
 
-    # Tests to try:
-    # -Limit control value (max_torque) just to watch behavior
-    #   o car/toyota/carcontroller.py:  STEER_MAX = 1500
-    # -Create STEER_MIN?
-    #   o The idea here, is that having torque anywhere under 300 is essentially useless (barring angle-faking) because
-    #      the sensor remains stuck until 400-450
-    # -Need to eventually pass stuck=True/False in
-    # -Maybe add
+      # Tests to try:
+      # -Limit control value (max_torque) just to watch behavior
+      #   o car/toyota/carcontroller.py:  STEER_MAX = 1500
+      # -Create STEER_MIN?
+      #   o The idea here, is that having torque anywhere under 300 is essentially useless (barring angle-faking) because
+      #      the sensor remains stuck until 400-450
+      # -Need to eventually pass stuck=True/False in
+      # -Maybe add
 
-    #      jog control up and down between 400-500
-    # -Check whether torque is moving towards zero. Currently, I'm just checking left/right but what if it's
-    #   dropping to zero quickly, yet still within the trigger window?
-    # -
+      #      jog control up and down between 400-500
+      # -Check whether torque is moving towards zero. Currently, I'm just checking left/right but what if it's
+      #   dropping to zero quickly, yet still within the trigger window?
+      # -
 
 
-    # Check for stagnant TSS1 steering sensor
-    # Currently check if self.TSS1 is the same for x milliseconds
-    if abs((self.TSS1 + 1000) - (self.stuck_check1 + 1000)) < 0.149:   # 0.099  # Within about 0.1 of the saved angle. More precisely, should check if oscillating between two 0.x
-      self.angle_steers_same = True
-    else:
-      self.angle_steers_same = False
-      self.stuck_check1 = self.TSS1
-      self.stuck_start_time = sec_since_boot()
+      # Check for stagnant TSS1 steering sensor
+      # Currently check if self.TSS1 is the same for x milliseconds
+      if abs((self.TSS1 + 1000) - (self.stuck_check1 + 1000)) < 0.149:   # 0.099  # Within about 0.1 of the saved angle. More precisely, should check if oscillating between two 0.x
+        self.angle_steers_same = True
+      else:
+        self.angle_steers_same = False
+        self.stuck_check1 = self.TSS1
+        self.stuck_start_time = sec_since_boot()
 
-    # Moving left, or right?
-    # could do this with control[x] or angle_des[x] also
-    # Compare des against TSS1
-    #moving_right = ((self.angle_steers_des + 2000) - (self.TSS1 + 2000)) < -0.15
-    # Compare des against vZSS
-    moving_right = ((self.angle_steers_des + 2000) - (angle_steers + 2000)) < -0.15
+      # Moving left, or right?
+      # could do this with control[x] or angle_des[x] also
+      # Compare des against TSS1
+      #moving_right = ((self.angle_steers_des + 2000) - (self.TSS1 + 2000)) < -0.15
+      # Compare des against vZSS
+      moving_right = ((self.angle_steers_des + 2000) - (angle_steers + 2000)) < -0.15
 
-    # If stuck
-    ##abs(angle_steers) < 5. and \
-    if active and \
-              self.angle_steers_same and \
+      # If stuck
+      ##abs(angle_steers) < 5. and \
+      if self.angle_steers_same and \
               sec_since_boot() - self.stuck_start_time >= self.stuck_ms * 0.001 and \
               pulse_trigger < abs(output_steer) < pulse_height :
 
-      if self.pulse_start_first:
-        self.pulse_start = sec_since_boot()
-        self.pulse_start_first = False
-      if self.pulsing:
-        #print "o_steer:", output_steer
-        if moving_right:
-          # Pulse less if moving towards zero?
-          #if (self.angle_steers_des > 0 and self.TSS1 > 0):
-          #  output_steer = 0.9 * -pulse_height
-          #if self.angle_steers_des < -3:
-          #  output_steer = 1.1 * -pulse_height
-          #else:
+        if self.pulse_start_first:
+          self.pulse_start = sec_since_boot()
+          self.pulse_start_first = False
+        if self.pulsing:
+          #print "o_steer:", output_steer
+          if moving_right:
+            # Pulse less if moving towards zero?
+            #if (self.angle_steers_des > 0 and self.TSS1 > 0):
+            #  output_steer = 0.9 * -pulse_height
+            #if self.angle_steers_des < -3:
+            #  output_steer = 1.1 * -pulse_height
+            #else:
 
-          # Mod torque +/- to the set -pulse_height (cuz right)
-          output_steer = 1.0 * -pulse_height
-          #print "Going Right:", output_steer
-        # If not much change, do nothing
-        elif 0.15 > ((self.angle_steers_des + 2000) - (angle_steers + 2000)) > -0.15:
-          # Do nadda
-          #print "No movement"
-          abcd = 1
-        else:  # Left!
-          #if (self.angle_steers_des < 0 and self.TSS1 < 0):
-          #  output_steer = 0.9 * pulse_height
-          #if self.angle_steers_des > 3:
-          #  output_steer = 1.1 * pulse_height
-          #else:
+            # Mod torque +/- to the set -pulse_height (cuz right)
+            output_steer = 1.0 * -pulse_height
+            #print "Going Right:", output_steer
+          # If not much change, do nothing
+          elif 0.15 > ((self.angle_steers_des + 2000) - (angle_steers + 2000)) > -0.15:
+            # Do nadda
+            #print "No movement"
+            abcd = 1
+          else:  # Left!
+            #if (self.angle_steers_des < 0 and self.TSS1 < 0):
+            #  output_steer = 0.9 * pulse_height
+            #if self.angle_steers_des > 3:
+            #  output_steer = 1.1 * pulse_height
+            #else:
 
-          output_steer = 1.3 * pulse_height
-          #print "Going Left:", output_steer
+            output_steer = 1.3 * pulse_height
+            #print "Going Left:", output_steer
 
-    else: # cancel pulsing
-      self.pulse_start = -1.
-      self.pulsing = False
-      self.pulse_start_first = True
+      else: # cancel pulsing
+        self.pulse_start = -1.
+        self.pulsing = False
+        self.pulse_start_first = True
 
-    # if 'going straight', limit total torque
-    #if abs(output_steer) < 1.0  and  abs(self.angle_steers_des) < 2.0:
-    #  if output_steer > self.straight_limit:
-    #    output_steer = self.straight_limit
-    #  elif output_steer < -self.straight_limit:
-    #    output_steer = -self.straight_limit
+      # if 'going straight', limit total torque
+      #if abs(output_steer) < 1.0  and  abs(self.angle_steers_des) < 2.0:
+      #  if output_steer > self.straight_limit:
+      #    output_steer = self.straight_limit
+      #  elif output_steer < -self.straight_limit:
+      #    output_steer = -self.straight_limit
 
-    #if abs(output_steer) != pulse_height:
-    #  if output_steer > self.straight_limit:
-    #    output_steer = self.straight_limit
-    #  elif output_steer < -self.straight_limit:
-    #    output_steer = -self.straight_limit
+      #if abs(output_steer) != pulse_height:
+      #  if output_steer > self.straight_limit:
+      #    output_steer = self.straight_limit
+      #  elif output_steer < -self.straight_limit:
+      #    output_steer = -self.straight_limit
 
-      #elif  0.075 < output_steer < 0.15:
-      #   output_steer = 0.15
-      #elif  -0.075 < output_steer < -0.15:
-      #   output_steer = -0.15
+        #elif  0.075 < output_steer < 0.15:
+        #   output_steer = 0.15
+        #elif  -0.075 < output_steer < -0.15:
+        #   output_steer = -0.15
 
-    #if abs (self.angle_steers_des) >= 5.5:
-    #  output_steer *= 1.4
-
-
-    # Need to think about cancelling the pulse if angle_des is < 1.5 now
+      #if abs (self.angle_steers_des) >= 5.5:
+      #  output_steer *= 1.4
 
 
-    # Trigger pulse if desired torque falls within our window  AND stuck AND  (pulse_start=False  OR  withing pulse window)
-    #if self.pulsing:
-      #if not self.pulsing:
-      # Pulse started at this time
+      # Need to think about cancelling the pulse if angle_des is < 1.5 now
 
 
-    # pulse window status
-    if self.pulse_start + pulse_length > sec_since_boot():
-      self.pulsing = True
-    else:
-      self.pulsing = False
-
-    # total window is over, so allow future pulse
-    if self.pulse_start + pulse_window < sec_since_boot():
-      #self.pulse_start = -1.
-      self.pulse_start_first = True
+      # Trigger pulse if desired torque falls within our window  AND stuck AND  (pulse_start=False  OR  withing pulse window)
+      #if self.pulsing:
+        #if not self.pulsing:
+        # Pulse started at this time
 
 
-    if active  and  self.stuck_debug:
-      #print round(sec_since_boot(), 2), "mph:", int(round(v_ego * 2.237, 1)), "a_des", round(self.angle_steers_des, 2), "a_steers:", round(self.TSS1, 2), "s_time:", round(sec_since_boot() - self.stuck_start_time, 2), "o_steer:", output_steer
-      #print "s_torque", self.stuck_torque, "t_hist:", self.torque_history
 
 
+
+      old_output_steer = output_steer
+      self.output_steer_prev = output_steer
+    
+      if not self.pulsing:
+        # Enforce rate limit
+        custom_steer_max = float(CustomSteerLimitParams.STEER_MAX)
+        new_output_steer_cmd = custom_steer_max * output_steer
+        new_output_steer_cmd = apply_toyota_steer_torque_limits(new_output_steer_cmd, old_output_steer, old_output_steer, CustomSteerLimitParams)
+        output_steer = new_output_steer_cmd / custom_steer_max
+    
+      #steers_max = get_steer_max(CP, v_ego)
+      #self.output_steer = clip(self.output_steer, -steers_max, steers_max)
+
+
+
+
+
+      # pulse window status
+      if self.pulse_start + pulse_length > sec_since_boot():
+        self.pulsing = True
+      else:
+        self.pulsing = False
+
+      # total window is over, so allow future pulse
+      if self.pulse_start + pulse_window < sec_since_boot():
+        #self.pulse_start = -1.
+        self.pulse_start_first = True
+
+
+      if self.stuck_debug:
+        #print round(sec_since_boot(), 2), "mph:", int(round(v_ego * 2.237, 1)), "a_des", round(self.angle_steers_des, 2), "a_steers:", round(self.TSS1, 2), "s_time:", round(sec_since_boot() - self.stuck_start_time, 2), "o_steer:", output_steer
+        #print "s_torque", self.stuck_torque, "t_hist:", self.torque_history
+        abcsdfdfs = 1
 
       #self.output_steer = output_steer
       #print "s_o_steer:", output_steer
+
       pid_log.active = True
       pid_log.p = self.pid.p
       pid_log.i = self.pid.i
@@ -248,7 +272,7 @@ class LatControlPID(object):
       pid_log.output = output_steer
       pid_log.saturated = bool(self.pid.saturated)
 
-    #print round(sec_since_boot(), 2), "mph:", int(round(v_ego * 2.237, 1)), "a_des", round(self.angle_steers_des, 2), "a_steers:", round(self.TSS1, 2)
+      #print round(sec_since_boot(), 2), "mph:", int(round(v_ego * 2.237, 1)), "a_des", round(self.angle_steers_des, 2), "a_steers:", round(self.TSS1, 2)
 
 
     self.sat_flag = self.pid.saturated
