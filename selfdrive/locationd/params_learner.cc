@@ -52,13 +52,13 @@ bool ParamsLearner::update(double psi, double u, double sa) {
     double slow_ao_diff = 2.0*cF0*cR0*l*u*x*(1.0*cF0*cR0*l*u*x*(slow_ao - sa) + psi*sR*(cF0*cR0*pow(l, 2)*x - m*pow(u, 2)*(aF*cF0 - aR*cR0)))/(pow(sR, 2)*pow(cF0*cR0*pow(l, 2)*x - m*pow(u, 2)*(aF*cF0 - aR*cR0), 2));
     double new_slow_ao = slow_ao - alpha2 * slow_ao_diff;
 
-    double new_x = x - alpha3 * (-2.0*cF0*cR0*l*m*pow(u, 3)*(slow_ao - sa)*(aF*cF0 - aR*cR0)*(1.0*cF0*cR0*l*u*x*(slow_ao - sa) + psi*sR*(cF0*cR0*pow(l, 2)*x - m*pow(u, 2)*(aF*cF0 - aR*cR0)))/(pow(sR, 2)*pow(cF0*cR0*pow(l, 2)*x - m*pow(u, 2)*(aF*cF0 - aR*cR0), 3)));
-    double new_sR = sR - alpha4 * (-2.0*cF0*cR0*l*u*x*(slow_ao - sa)*(1.0*cF0*cR0*l*u*x*(slow_ao - sa) + psi*sR*(cF0*cR0*pow(l, 2)*x - m*pow(u, 2)*(aF*cF0 - aR*cR0)))/(pow(sR, 3)*pow(cF0*cR0*pow(l, 2)*x - m*pow(u, 2)*(aF*cF0 - aR*cR0), 2)));
+    //double new_x = x - alpha3 * (-2.0*cF0*cR0*l*m*pow(u, 3)*(slow_ao - sa)*(aF*cF0 - aR*cR0)*(1.0*cF0*cR0*l*u*x*(slow_ao - sa) + psi*sR*(cF0*cR0*pow(l, 2)*x - m*pow(u, 2)*(aF*cF0 - aR*cR0)))/(pow(sR, 2)*pow(cF0*cR0*pow(l, 2)*x - m*pow(u, 2)*(aF*cF0 - aR*cR0), 3)));
+    //double new_sR = sR - alpha4 * (-2.0*cF0*cR0*l*u*x*(slow_ao - sa)*(1.0*cF0*cR0*l*u*x*(slow_ao - sa) + psi*sR*(cF0*cR0*pow(l, 2)*x - m*pow(u, 2)*(aF*cF0 - aR*cR0)))/(pow(sR, 3)*pow(cF0*cR0*pow(l, 2)*x - m*pow(u, 2)*(aF*cF0 - aR*cR0), 2)));
 
     ao = new_ao;
     slow_ao = new_slow_ao;
-    x = new_x;
-    sR = new_sR;
+    //x = new_x;
+    //sR = new_sR;
   }
 
 #ifdef DEBUG
@@ -68,14 +68,14 @@ bool ParamsLearner::update(double psi, double u, double sa) {
 
   ao = clip(ao, -MAX_ANGLE_OFFSET, MAX_ANGLE_OFFSET);
   slow_ao = clip(slow_ao, -MAX_ANGLE_OFFSET, MAX_ANGLE_OFFSET);
-  x = clip(x, MIN_STIFFNESS, MAX_STIFFNESS);
-  sR = clip(sR, min_sr, max_sr);
+  //x = clip(x, MIN_STIFFNESS, MAX_STIFFNESS);
+  //sR = clip(sR, min_sr, max_sr);
 
   bool valid = fabs(slow_ao) < MAX_ANGLE_OFFSET_TH;
-  valid = valid && sR > min_sr_th;
-  valid = valid && sR < max_sr_th;
-  //return valid;
-  return true;
+  valid = valid && sR >= min_sr_th;
+  valid = valid && sR <= max_sr_th;
+  return valid;
+  //return true;
 }
 
 
