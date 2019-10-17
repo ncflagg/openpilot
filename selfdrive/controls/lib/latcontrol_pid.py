@@ -43,31 +43,29 @@ class LatControlPID(object):
 
     # Working variables
     self.TSS1 = 0.0                            # Track TSS1 angle for stuck-detection
-    self.stuck_debug = True                    # Print debug messages?
+    self.stuck_debug = True                   # Print debug messages?
     self.stuck_check1 = 1500.0                 # Save the previously recorded angle_steers (start with impossible value)
     #self.stuck_check2 = 2000.0                 # Check a second, adjacent angle to detect rapid oscillations seen in cabana data for STEER_FRACTION
     self.angle_steers_same = False             # Save a total count of near-identical angle_steers values. May not need to be global
     self.stuck_start_time = 9000000000.0       # Track time since angle_steers has shown the same value (start with far future date)
     #self.stuck_torque = 3000
-    #self.torque_history = []
+    self.output_steer_history = []
 
     # For pulse width modulator
     self.pulse_start = -1.                      # Start with false value
     self.pulsing = False
     self.pulse_start_first = True
     self.straight_limit = 0.1
-    
+    self.allow_pulse_start = 0.
     
   def reset(self):
     self.pid.reset()
 
   def update(self, active, v_ego, angle_steers, angle_steers_rate, eps_torque, steer_override, CP, VM, path_plan, driver_torque):
     self.TSS1 = angle_steers      # Save for stuck-detection
-    #print "TSS1:", self.TSS1
+    #print "TSS1:", round(self.TSS1, 2),
     #print "v_ego:", v_ego, "a_rate:", angle_steers_rate, "eps:", eps_torque, "over:", steer_override, "d_torq:", driver_torque
     #"CP:", CP, "VM:", VM, "pplan:", path_plan,
-    #print "TSS1 Angle?:", angle_steers
-    #print "self TSS1 Angle?:", self.angle_steers
     #print "self_o_steer:", self.output_steer
 
     # virtualZSS
@@ -79,8 +77,8 @@ class LatControlPID(object):
 	  
     if len(self.past_data) == self.seq_len:
       angle_steers = interp_fast(float(self.model_wrapper.run_model_time_series([i for x in self.past_data for i in x])), [0.0, 1.0], self.scales['zorro_sensor'])
-    angle_steers # I've seen some evidence that vZSS is off by +0.5deg
-    #print "vZSS:", angle_steers
+    #angle_steers -= 0.4  # I've seen some evidence that vZSS is off by +0.5deg
+    #print "vZSS:", round(angle_steers, 2)
 
     #angle_steers += 1.1   # Trying adding my offset here too
     #print "vZSS + offset:", angle_steers
@@ -93,7 +91,12 @@ class LatControlPID(object):
       output_steer = 0.0
       pid_log.active = False
       self.pid.reset()
+      self.allow_pulse_start = 0.
     else:
+      if self.allow_pulse_start == 0.:
+        # Wait a couple seconds after cruise is engaged before pulsing to ease false-starts
+        self.allow_pulse_start = sec_since_boot() + 2.
+
       self.angle_steers_des = path_plan.angleSteers  # get from MPC/PathPlanner
 
       steers_max = get_steer_max(CP, v_ego)
@@ -110,16 +113,12 @@ class LatControlPID(object):
 
 
 
-
-
-
       # retain self.control over time and send out modulated pulses here
       # make this a function?
       pulse_trigger = 0.05   #0.1       # minimum requested torque (factor) to trigger pulse width logic
-      pulse_height = 0.15 #0.3=450 (w max 1500) # torque value to start with to overcome friction
-      pulse_length = 0.05   #0.1       # length of time (seconds) to max-out to overcome friction
-      pulse_window = 0.102                # total time in sec before another pulse_length is allowed
-
+      pulse_height = 0.175  #0.2 #0.3=450 (w max 1500) # torque value to start with to overcome friction
+      pulse_length = 0.05  #0.07   #0.1       # length of time (seconds) to max-out to overcome friction
+      pulse_window = 0.102 #0.14                # total time in sec before another pulse_length is allowed
 
       # Tests to try:
       # -Limit control value (max_torque) just to watch behavior
@@ -152,11 +151,24 @@ class LatControlPID(object):
       # Compare des against vZSS
       moving_right = ((self.angle_steers_des + 2000) - (angle_steers + 2000)) < -0.15
 
+      # Add stuck prediction to act sooner using the torque history from vZSS
+      # Should be this, but Zorro's latcontrol_pid doesn't save self.output_steer like _indi does, so it's always 0
+      #   (self.past_data[19]<0.1 and self.past_data[18]<0.1 and self.past_data[17]<0.1)
+      if len(self.output_steer_history) > 2:
+        pulse_predict = \
+          (self.output_steer_history[0] < 0.1 and \
+           self.output_steer_history[1] < 0.1 and \
+           self.output_steer_history[2] < 0.1)
+      else:
+        pulse_predict = False
+
       # If stuck
       ##abs(angle_steers) < 5. and \
       if self.angle_steers_same and \
-              sec_since_boot() - self.stuck_start_time >= self.stuck_ms * 0.001 and \
-              pulse_trigger < abs(output_steer) < pulse_height :
+        0 < self.allow_pulse_start <= sec_since_boot() and \
+        pulse_trigger < abs(output_steer) < pulse_height and \
+          ( sec_since_boot() - self.stuck_start_time >= self.stuck_ms * 0.001  or  \
+            pulse_predict ) :
 
         if self.pulse_start_first:
           self.pulse_start = sec_since_boot()
@@ -173,7 +185,8 @@ class LatControlPID(object):
 
             # Mod torque +/- to the set -pulse_height (cuz right)
             output_steer = 1.0 * -pulse_height
-            #print "Going Right:", output_steer
+            if self.stuck_debug:
+              print "Going Right:", output_steer
           # If not much change, do nothing
           elif 0.15 > ((self.angle_steers_des + 2000) - (angle_steers + 2000)) > -0.15:
             # Do nadda
@@ -187,7 +200,8 @@ class LatControlPID(object):
             #else:
 
             output_steer = 1.3 * pulse_height
-            #print "Going Left:", output_steer
+            if self.stuck_debug:
+              print "Going Left:", output_steer
 
       else: # cancel pulsing
         self.pulse_start = -1.
@@ -225,21 +239,33 @@ class LatControlPID(object):
         # Pulse started at this time
 
 
+      if self.stuck_debug:
+        print "o_steer:", output_steer, "o_prev:", self.output_steer_prev,
 
-
-
-      old_output_steer = output_steer
-      self.output_steer_prev = output_steer
+      custom_steer_max = float(CustomSteerLimitParams.STEER_MAX)
+      old_output_steer = custom_steer_max * self.output_steer_prev
     
-      if not self.pulsing:
-        # Enforce rate limit
-        custom_steer_max = float(CustomSteerLimitParams.STEER_MAX)
+      if not self.pulsing:  # Enforce rate limit
+        #print "c_max", custom_steer_max,
         new_output_steer_cmd = custom_steer_max * output_steer
-        new_output_steer_cmd = apply_toyota_steer_torque_limits(new_output_steer_cmd, old_output_steer, old_output_steer, CustomSteerLimitParams)
+        if self.stuck_debug:
+          print "n_out", round(new_output_steer_cmd,2),
+        # Give function 0-1500 values
+        new_output_steer_cmd = apply_toyota_steer_torque_limits(new_output_steer_cmd, old_output_steer, eps_torque, CustomSteerLimitParams)
+        if self.stuck_debug:
+          print "n_out_lim", round(new_output_steer_cmd, 2),
         output_steer = new_output_steer_cmd / custom_steer_max
-    
+        if self.stuck_debug:
+          print "l_out", round(output_steer, 3)
+        self.output_steer_prev = output_steer
+
+        self.output_steer_history.append(output_steer)
+        while len(self.output_steer_history) > 3:
+          del self.output_steer_history[0]
+
+ 
       #steers_max = get_steer_max(CP, v_ego)
-      #self.output_steer = clip(self.output_steer, -steers_max, steers_max)
+      #output_steer = clip(self.output_steer, -steers_max, steers_max)
 
 
 
@@ -258,9 +284,9 @@ class LatControlPID(object):
 
 
       if self.stuck_debug:
-        #print round(sec_since_boot(), 2), "mph:", int(round(v_ego * 2.237, 1)), "a_des", round(self.angle_steers_des, 2), "a_steers:", round(self.TSS1, 2), "s_time:", round(sec_since_boot() - self.stuck_start_time, 2), "o_steer:", output_steer
-        #print "s_torque", self.stuck_torque, "t_hist:", self.torque_history
-        abcsdfdfs = 1
+        print round(sec_since_boot(), 2), "mph:", int(round(v_ego * 2.237, 1)), "a_des", round(self.angle_steers_des, 2), "TSS1:", round(self.TSS1, 2), "vZSS:", round(angle_steers, 2), "s_time:", round(sec_since_boot() - self.stuck_start_time, 2), "p_predict:", pulse_predict
+        #, "o_steer:", output_steer
+
 
       #self.output_steer = output_steer
       #print "s_o_steer:", output_steer
