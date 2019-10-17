@@ -64,7 +64,7 @@ class CarInterface(object):
       ret.safetyParam = 66  # see conversion factor for STEER_TORQUE_EPS in dbc file
       ret.wheelbase = 2.70
       ret.steerRatio = 13.4   # unknown end-to-end spec
-      tire_stiffness_factor = 17.25  # Needs some corner testing, but somewhere 16-20 for Prime
+      tire_stiffness_factor = 19.0 #0.089  # Needs some corner testing, but somewhere 16-20 for Prime
       ret.tireStiffnessFactor = tire_stiffness_factor
       ret.mass = 3375. * CV.LB_TO_KG + STD_CARGO_KG
 
@@ -77,7 +77,12 @@ class CarInterface(object):
       #ret.lateralTuning.indi.timeConstant = 1.0
       #ret.lateralTuning.indi.actuatorEffectiveness = 1.0
 
-      ret.steerActuatorDelay = 1.0 # disabled
+      ret.steerActuatorDelay = 0.7 #0.18  #0.19 / 0.2 seemed too big; turning late  #1.0 # disabled
+      ## 0.12 is better for corners but might have introduced ping pong on the freeway. I lowered path costs; it could have been that. Nope
+      # Otherwise, might be able to lower actuator delay on straights
+      # OR, might just need PIF-tuned again
+      # Or, raise tS?
+
       ret.centerToFront = ret.wheelbase * 0.44
 
     elif candidate in [CAR.RAV4, CAR.RAV4H]:
