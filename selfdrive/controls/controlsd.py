@@ -260,11 +260,13 @@ def state_control(frame, rcv_frame, plan, path_plan, CS, CP, state, events, v_cr
   # Steering PID loop and lateral MPC
   #actuators.steer, actuators.steerAngle, lac_log = LaC.update(active, CS.vEgo, CS.steeringAngle, CS.steeringRate,
   #                                            CS.steeringPressed, CP, VM, path_plan, CS.steeringTorque)
-  actuators.steer, actuators.steerAngle, lac_log = LaC.update(active, CS.vEgo, CS.steeringAngle - 0.4, CS.steeringRate,
+
+  # Removed manual offset for testing self.output_steer addition in latcon_pid
+  actuators.steer, actuators.steerAngle, lac_log = LaC.update(active, CS.vEgo, CS.steeringAngle, CS.steeringRate,
                                    CS.steeringTorqueEps, CS.steeringPressed, CP, VM, path_plan, CS.steeringTorque)
 
   # Offset vZSS. Or, add above
-  #actuators.steerAngle -= 0.4
+  #actuators.steerAngle += 0.4
 
 
   # Send a "steering required alert" if saturation count has reached the limit
