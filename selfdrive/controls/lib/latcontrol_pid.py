@@ -198,7 +198,7 @@ class LatControlPID(object):
             # Do nadda
             #print "No movement"
             abcd = 1
-        elif ((self.angle_steers_des + 2000) - (angle_steers + 2000)) > 0.05:
+          elif ((self.angle_steers_des + 2000) - (angle_steers + 2000)) > 0.05:
           #                   1, 2001                  -1, 1999  = 2
           #else:  # Left!
             #if (self.angle_steers_des < 0 and self.TSS1 < 0):
