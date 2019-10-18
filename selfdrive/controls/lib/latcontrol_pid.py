@@ -76,7 +76,8 @@ class LatControlPID(object):
     #print "past_data:", self.past_data
 	  
     if len(self.past_data) == self.seq_len:
-      angle_steers = interp_fast(float(self.model_wrapper.run_model_time_series([i for x in self.past_data for i in x])), [0.0, 1.0], self.scales['zorro_sensor'])
+      # Add manual offset
+      angle_steers = interp_fast(float(self.model_wrapper.run_model_time_series([i for x in self.past_data for i in x])), [0.0, 1.0], self.scales['zorro_sensor']) - 0.4
     #angle_steers -= 0.4  # I've seen some evidence that vZSS is off by +0.5deg
     #print "vZSS:", round(angle_steers, 2)
 
@@ -116,7 +117,7 @@ class LatControlPID(object):
       # retain self.control over time and send out modulated pulses here
       # make this a function?
       pulse_trigger = 0.05   #0.1       # minimum requested torque (factor) to trigger pulse width logic
-      pulse_height = 0.175  #0.2 #0.3=450 (w max 1500) # torque value to start with to overcome friction
+      pulse_height = 0.225  #0.2 #0.3=450 (w max 1500) # torque value to start with to overcome friction
       pulse_length = 0.05  #0.07   #0.1       # length of time (seconds) to max-out to overcome friction
       pulse_window = 0.102 #0.14                # total time in sec before another pulse_length is allowed
 
@@ -149,16 +150,16 @@ class LatControlPID(object):
       # Compare des against TSS1
       #moving_right = ((self.angle_steers_des + 2000) - (self.TSS1 + 2000)) < -0.15
       # Compare des against vZSS
-      moving_right = ((self.angle_steers_des + 2000) - (angle_steers + 2000)) < -0.15
-
+      moving_right = ((self.angle_steers_des + 2000) - (angle_steers + 2000)) < -0.05
+      #                         -10, 1990                       -5, 1995  = -5, which IS TO THE RIGHT so this could be 'less than 0'
       # Add stuck prediction to act sooner using the torque history from vZSS
       # Should be this, but Zorro's latcontrol_pid doesn't save self.output_steer like _indi does, so it's always 0
       #   (self.past_data[19]<0.1 and self.past_data[18]<0.1 and self.past_data[17]<0.1)
       if len(self.output_steer_history) > 2:
         pulse_predict = \
-          (self.output_steer_history[0] < 0.1 and \
-           self.output_steer_history[1] < 0.1 and \
-           self.output_steer_history[2] < 0.1)
+          (abs(self.output_steer_history[0]) < 0.1 and \
+           abs(self.output_steer_history[1]) < 0.1 and \
+           abs(self.output_steer_history[2]) < 0.1)
       else:
         pulse_predict = False
 
@@ -188,18 +189,25 @@ class LatControlPID(object):
             if self.stuck_debug:
               print "Going Right:", output_steer
           # If not much change, do nothing
-          elif 0.15 > ((self.angle_steers_des + 2000) - (angle_steers + 2000)) > -0.15:
+          #elif abs((self.angle_steers_des + 2000) - (angle_steers + 2000)) < 0.1:
+            #              -10, 1990                     -5, 1995   = -5, 5
+            #               10, 2010                     5, 2005    = 5
+            #               10, 2010                     -5, 1995   = 15
+            #               -0.4, 1999.6           -0.45, 1999.55   = 0.05
+            #   LOOKS GOOD
             # Do nadda
             #print "No movement"
             abcd = 1
-          else:  # Left!
+        elif ((self.angle_steers_des + 2000) - (angle_steers + 2000)) > 0.05:
+          #                   1, 2001                  -1, 1999  = 2
+          #else:  # Left!
             #if (self.angle_steers_des < 0 and self.TSS1 < 0):
             #  output_steer = 0.9 * pulse_height
             #if self.angle_steers_des > 3:
             #  output_steer = 1.1 * pulse_height
             #else:
 
-            output_steer = 1.3 * pulse_height
+            output_steer = 1.0 * pulse_height
             if self.stuck_debug:
               print "Going Left:", output_steer
 
@@ -258,6 +266,10 @@ class LatControlPID(object):
         if self.stuck_debug:
           print "l_out", round(output_steer, 3)
         self.output_steer_prev = output_steer
+
+        # Haven't been feeding vZSS torque commands up til now (10-16-19)
+        # May mean it wasn't really working, at least as accurately as it was supposed to
+        self.output_steer = output_steer
 
         self.output_steer_history.append(output_steer)
         while len(self.output_steer_history) > 3:
