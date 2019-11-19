@@ -92,6 +92,13 @@ class PathPlanner(object):
 
     steerRatio = 13.4
 
+    # Interp between two points I think are good
+    #curvature_factor = np.interp(v_ego, [0., 31.5], [0.5495, 0.1])
+    #curvature_factor = np.interp(v_ego, [12.07, 28.16], [0.375, 0.175])
+    curvature_factor = np.interp(v_ego, [12.07, 29.95], [0.39, 0.144])
+    #  12.07/26mph - 0.37726
+    #  28.16/66mph - 0.1476
+
     corner = abs(self.MP.l_poly[1]) > 0.00003  or  abs(self.MP.r_poly[1]) > 0.00003
       #or  abs(self.MP.d_poly[3]) > 0.09  # Shouldn't need to track lane center, if lower sR = MORE steering already
 
@@ -99,16 +106,17 @@ class PathPlanner(object):
       # Tune for turns
       steerRatio = 13.4
       self.aDelay = 0.26
-      self.delay_switch_time = 0.26 + sec_since_boot() 
+      self.delay_switch_time = 0.26 + sec_since_boot()
     else:
       # Tune for straights
       steerRatio = 13.4
       # OR higher actuator delay
       if self.delay_switch_time < sec_since_boot():  # Don't switch if it's recently changed
         self.aDelay = CP.steerActuatorDelay #test if 0.75 contributes to 'lateness'  #0.75  #1.0 made it hug to the RIGHT a little  # maybe with  steerRatio = 18.0
-      curvature_factor = 0.5
+      #curvature_factor = 0.5
       # Or, decrease cfactor by 2.5%, increasing steering while "going straight"
-      #curvature_factor *= 0.975
+      curvature_factor *= 1.0
+      #curvature_factor = 0.37
 
     if self.aDelay == 0.0:
       self.aDelay = CP.steerActuatorDelay

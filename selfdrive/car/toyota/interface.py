@@ -81,7 +81,7 @@ class CarInterface(object):
       #ret.lateralTuning.indi.timeConstant = 1.0
       #ret.lateralTuning.indi.actuatorEffectiveness = 1.0
 
-      ret.steerActuatorDelay =  1.0 #0.7-Seemd GOOD at 45mph #0.41 turned very confidently #1.0 #0.225 #0.4 #0.3 #0.35 #0.25 #0.6 #0.9 #0.18  #0.19 / 0.2 seemed too big; turning late  #1.0 # disabled
+      ret.steerActuatorDelay =  1.0 #1.0 #0.7-Seemd GOOD at 45mph #0.41 turned very confidently #1.0 #0.225 #0.4 #0.3 #0.35 #0.25 #0.6 #0.9 #0.18  #0.19 / 0.2 seemed too big; turning late  #1.0 # disabled
       ## 0.12 is better for corners but might have introduced ping pong on the freeway. I lowered path costs; it could have been that. Nope
       # Otherwise, might be able to lower actuator delay on straights
       # OR, might just need PIF-tuned again
