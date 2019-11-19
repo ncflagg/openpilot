@@ -113,10 +113,10 @@ class PathPlanner(object):
       # OR higher actuator delay
       if self.delay_switch_time < sec_since_boot():  # Don't switch if it's recently changed
         self.aDelay = CP.steerActuatorDelay #test if 0.75 contributes to 'lateness'  #0.75  #1.0 made it hug to the RIGHT a little  # maybe with  steerRatio = 18.0
-      #curvature_factor = 0.5
-      # Or, decrease cfactor by 2.5%, increasing steering while "going straight"
-      curvature_factor *= 1.0
-      #curvature_factor = 0.37
+        #curvature_factor = 0.5
+        # Or, decrease cfactor by 2.5%, increasing steering while "going straight"
+        curvature_factor *= 1.0
+        #curvature_factor = 0.37
 
     if self.aDelay == 0.0:
       self.aDelay = CP.steerActuatorDelay
