@@ -262,6 +262,10 @@ def state_control(frame, rcv_frame, plan, path_plan, CS, CP, state, events, v_cr
   #                                            CS.steeringPressed, CP, VM, path_plan, CS.steeringTorque)
 
   # Removed manual offset for testing self.output_steer addition in latcon_pid
+  if enabled:
+    print "torque_eps:", round(CS.steeringTorqueEps, 4), "torque:", round(CS.steeringTorque, 4), "s_rate:", round(CS.steeringRate, 4)
+    print "p_plan:", path_plan
+
   actuators.steer, actuators.steerAngle, lac_log = LaC.update(active, CS.vEgo, CS.steeringAngle, CS.steeringRate,
                                    CS.steeringTorqueEps, CS.steeringPressed, CP, VM, path_plan, CS.steeringTorque)
 
@@ -357,9 +361,8 @@ def data_send(sm, CS, CI, CP, VM, state, events, actuators, v_cruise_kph, rk, ca
     "vEgo": CS.vEgo,
     "vEgoRaw": CS.vEgoRaw,
     "angleSteers": CS.steeringAngle,
-    "curvature": VM.calc_curvature((CS.steeringAngle - sm['pathPlan'].angleOffset) * CV.DEG_TO_RAD, CS.vEgo),
-    #"curvature": VM.calc_curvature((CS.steeringAngle) * CV.DEG_TO_RAD, CS.vEgo),
-    #"curvature": VM.calc_curvature((CS.steeringAngle) * CV.DEG_TO_RAD, CS.vEgo),  # Re-visit
+    #"curvature": VM.calc_curvature((CS.steeringAngle - sm['pathPlan'].angleOffset) * CV.DEG_TO_RAD, CS.vEgo),
+    "curvature": VM.calc_curvature((CS.steeringAngle) * CV.DEG_TO_RAD, CS.vEgo),
     "steerOverride": CS.steeringPressed,
     "state": state,
     "engageable": not bool(get_events(events, [ET.NO_ENTRY])),

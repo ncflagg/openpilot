@@ -9,7 +9,6 @@ from selfdrive.controls.lib.lateral_mpc import libmpc_py
 from selfdrive.controls.lib.drive_helpers import MPC_COST_LAT
 from selfdrive.controls.lib.model_parser import ModelParser
 import selfdrive.messaging as messaging
-from selfdrive.controls.lib.offset_learner import OffsetLearner
 
 LOG_MPC = os.environ.get('LOG_MPC', False)
 
@@ -36,7 +35,6 @@ class PathPlanner(object):
     self.setup_mpc(CP.steerRateCost)
     self.solution_invalid_cnt = 0
 
-
   def setup_mpc(self, steer_rate_cost):
     self.libmpc = libmpc_py.libmpc
     self.libmpc.init(MPC_COST_LAT.PATH, MPC_COST_LAT.LANE, MPC_COST_LAT.HEADING, steer_rate_cost)
@@ -57,86 +55,31 @@ class PathPlanner(object):
     self.r_poly = libmpc_py.ffi.new("double[4]")
     self.p_poly = libmpc_py.ffi.new("double[4]")
 
-    self.aDelay = 0.0
-    self.delay_switch_time = 0.0
-
   def update(self, sm, CP, VM):
     v_ego = sm['carState'].vEgo
     angle_steers = sm['carState'].steeringAngle
     active = sm['controlsState'].active
 
     #angle_offset_average = sm['liveParameters'].angleOffsetAverage
-    angle_offset_average = 0.0
-    #angle_offset_average = -1.15   # Nate's Prius Prime's average
-    #angle_offset_bias = sm['controlsState'].angleModelBias + angle_offset_average
-    #angle_offset_bias = angle_offset_average
-    angle_offset = sm['liveParameters'].angleOffset   # from params_learner
-    #angle_offset = 0.0
+    angle_offset_average = -1.2   # Nate's Prius Prime's average
+    angle_offset_bias = sm['controlsState'].angleModelBias + angle_offset_average
+    angle_offset = sm['liveParameters'].angleOffset
+
     self.MP.update(v_ego, sm['model'])
 
     # Run MPC
     self.angle_steers_des_prev = self.angle_steers_des_mpc
-    # just omit this?
+    # Need to change this?
     VM.update_params(sm['liveParameters'].stiffnessFactor, sm['liveParameters'].steerRatio)
     curvature_factor = VM.curvature_factor(v_ego)
-    #curvature_factor = 0.29 #0.4 was ok          # Testing setting statically
-    #Might have been way off. Try 0.0076, 0.009, 0.014
-    #curvature_factor = 0.016  # 0.014 - 0.016 seemed nice is straights and turned too much in corners like Z said
-    # I think I've been confusing cfactor with "curvature" a bunch.... :\
-    #curvature_factor = 0.45 ..didnt seem enough either  #0.47 not turning enough
-    #curvature_factor = 0.41 # 0.42 may have not been turning enough on the freeway
     self.l_poly = list(self.MP.l_poly)
     self.r_poly = list(self.MP.r_poly)
     self.p_poly = list(self.MP.p_poly)
 
-
-    steerRatio = 13.4
-
-    corner = abs(self.MP.l_poly[1]) > 0.00003  or  abs(self.MP.r_poly[1]) > 0.00003
-      #or  abs(self.MP.d_poly[3]) > 0.09  # Shouldn't need to track lane center, if lower sR = MORE steering already
-
-    if corner:
-      # Tune for turns
-      steerRatio = 13.4
-      self.aDelay = 0.26
-      self.delay_switch_time = 0.26 + sec_since_boot() 
-    else:
-      # Tune for straights
-      steerRatio = 13.4
-      # OR higher actuator delay
-      if self.delay_switch_time < sec_since_boot():  # Don't switch if it's recently changed
-        self.aDelay = CP.steerActuatorDelay #test if 0.75 contributes to 'lateness'  #0.75  #1.0 made it hug to the RIGHT a little  # maybe with  steerRatio = 18.0
-      curvature_factor = 0.5
-      # Or, decrease cfactor by 2.5%, increasing steering while "going straight"
-      #curvature_factor *= 0.975
-
-    if self.aDelay == 0.0:
-      self.aDelay = CP.steerActuatorDelay
-
-    #corner_delay = 0.25
-
-    #if 1.9 <  abs(self.angle_steers_des - angle_offset): # angle checked can be smaller ASSUMING avg offset is being processed already on angle_steers. Otherwise, need -avg_offset too
-
-    #if 2.5 < abs(self.angle_steers_des):
-      # Ramp delay
-      #self.aDelay -= 0.05  # +/- 0.05 (20Hz) seems ideal since longitudinal should never go backwards
-      # -= CP.steerActuatorDelay - corner_delay
-      #self.aDelay = 0.12  #0.25
-    #  self.aDelay = CP.steerActuatorDelay
-    #else:
-      #self.aDelay += 0.05   # Should be able to move up faster since it's in the future?
-    #  self.aDelay = CP.steerActuatorDelay
-    # If ramping, clip
-    #self.aDelay = np.clip(self.aDelay, corner_delay, CP.steerActuatorDelay)
-
     # account for actuation delay
-    self.cur_state = calc_states_after_delay(self.cur_state, v_ego, angle_steers - angle_offset_average - angle_offset, curvature_factor, steerRatio, self.aDelay)
 
-    #print "cur_state:", self.cur_state
-
-    print "seconds:", round(sec_since_boot(), 2)
-    print "f_offset:", angle_offset, "d_poly3:", self.MP.d_poly[3], "c_poly3:", self.MP.c_poly[3], "l_poly:", self.MP.l_poly, "r_poly:", self.MP.r_poly, "    p_poly:", self.MP.p_poly, "curv:", curvature_factor
-    print "Corner?:", corner
+    self.cur_state = calc_states_after_delay(self.cur_state, v_ego, angle_steers - angle_offset_average, curvature_factor, VM.sR, CP.steerActuatorDelay)
+    #self.cur_state = calc_states_after_delay(self.cur_state, v_ego, angle_steers - angle_offset_average, curvature_factor, CP.steerRatio, CP.steerActuatorDelay)
 
     v_ego_mpc = max(v_ego, 5.0)  # avoid mpc roughness due to low speed
     self.libmpc.run_mpc(self.cur_state, self.mpc_solution,
@@ -146,21 +89,26 @@ class PathPlanner(object):
     # reset to current steer angle if not active or overriding
     if active:
       delta_desired = self.mpc_solution[0].delta[1]
-      rate_desired = math.degrees(self.mpc_solution[0].rate[0] * steerRatio)
+      rate_desired = math.degrees(self.mpc_solution[0].rate[0] * VM.sR)
+      #rate_desired = math.degrees(self.mpc_solution[0].rate[0] * CP.steerRatio)
     else:
-      delta_desired = math.radians(angle_steers - angle_offset) / steerRatio
+      delta_desired = math.radians(angle_steers - angle_offset_bias) / VM.sR
+      #delta_desired = math.radians(angle_steers - angle_offset_bias) / CP.steerRatio
       rate_desired = 0.0
 
     #self.cur_state[0].delta = delta_desired
 
-    self.angle_steers_des_mpc = float(math.degrees(delta_desired * steerRatio) + angle_offset)
+    self.angle_steers_des_mpc = float(math.degrees(delta_desired * VM.sR) + angle_offset_bias)
+    #self.angle_steers_des_mpc = float(math.degrees(delta_desired * CP.steerRatio) + angle_offset_bias)
 
     #  Check for infeasable MPC solution
     mpc_nans = np.any(np.isnan(list(self.mpc_solution[0].delta)))
     t = sec_since_boot()
     if mpc_nans:
       self.libmpc.init(MPC_COST_LAT.PATH, MPC_COST_LAT.LANE, MPC_COST_LAT.HEADING, CP.steerRateCost)
-      self.cur_state[0].delta = math.radians(angle_steers - angle_offset) / steerRatio
+      # How was  Vm.sR  working here before?
+      self.cur_state[0].delta = math.radians(angle_steers - angle_offset_bias) / VM.sR
+      #self.cur_state[0].delta = math.radians(angle_steers - angle_offset_bias) / CP.steerRatio
 
       if t > self.last_cloudlog_t + 5.0:
         self.last_cloudlog_t = t

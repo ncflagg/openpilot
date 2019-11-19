@@ -16,7 +16,7 @@ import os
 
 
 class OffsetLearner:
-    def __init__(self, debug=False):
+    def __init__(self, debug=True):
 
         # Tunables
         self.learning_rate = 400  #400 way too high   #   10 @20Hz. Could've been a hair faster, maybe

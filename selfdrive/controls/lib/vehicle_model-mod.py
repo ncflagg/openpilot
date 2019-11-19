@@ -107,6 +107,7 @@ class VehicleModel(object):
     self.cF_orig = CP.tireStiffnessFront
     self.cR_orig = CP.tireStiffnessRear
     self.update_params(1.0, CP.steerRatio)
+    #self.curv_factor_44 = 0.0
 
   def update_params(self, stiffness_factor, steer_ratio):
     """Update the vehicle model with a new stiffness factor and steer ratio"""
@@ -142,7 +143,6 @@ class VehicleModel(object):
     Returns:
       Curvature factor [rad/m]
     """
-    print "curvature:", self.curvature_factor(u) * sa / self.sR
     return self.curvature_factor(u) * sa / self.sR
 
   def curvature_factor(self, u):
@@ -156,12 +156,15 @@ class VehicleModel(object):
       Curvature factor [1/m]
     """
     sf = calc_slip_factor(self)
-    print "slip_factor:", sf
-    print "curvature_factor:", (1. - self.chi) / (1. - sf * u**2) / self.l
-    return (1. - self.chi) / (1. - sf * u**2) / self.l
+    #return (1. - self.chi) / (1. - sf * u**2) / self.l
     # Other vehicles' tire stiffness numbers in interface.py will need re-factored since learner isn't used
     # Thought this was working, but now I have to set curvature manually in pathplanner to avoid solution error
-    #return (1. - self.chi) / (0.0000000001 - sf * u**2) / self.l
+    #if self.curv_factor_44 == 0.0:
+    curv_factor_44 = (1. - self.chi) / (0.0000000001 - sf * 44.704**2) / self.l
+    print "curv_factor_44:", curv_factor_44
+    print "interp_cfact:", np.interp(u, [0., 44.704], [curv_factor_44 * 6.4, curv_factor_44]) # was 2.12x # 6.4x phbbt
+    return float(np.interp(u, [0., 44.704], [curv_factor_44 * 6.4, curv_factor_44]))
+
   def get_steer_from_curvature(self, curv, u):
     """Calculates the required steering wheel angle for a given curvature
 

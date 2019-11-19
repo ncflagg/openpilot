@@ -2,7 +2,7 @@ from common.numpy_fast import interp
 import numpy as np
 from selfdrive.controls.lib.latcontrol_helpers import model_polyfit, calc_desired_path, compute_path_pinv
 
-CAMERA_OFFSET = 0.06  #0.075  # m from center car to camera
+CAMERA_OFFSET = 0.06  # m from center car to camera
 
 def mean(numbers):
     return float(sum(numbers)) / max(len(numbers), 1)
@@ -18,9 +18,9 @@ class ModelParser(object):
 
     #self.lane_width_estimate = 3.7
     #self.lane_width_certainty = 1.0
-    self.lane_width = 4.5
+    #self.lane_width = 3.7
 
-    #self.lane_width = 3.1
+    self.lane_width = 3.0
     self.readings = []
     self.frame = 0
 
@@ -34,9 +34,8 @@ class ModelParser(object):
       r_poly = np.array(md.rightLane.poly)
       p_poly = np.array(md.path.poly)
     else:
-      # See if fitting right line first helps with over-curving
-      r_poly = model_polyfit(md.rightLane.points, self._path_pinv)  # right line
       l_poly = model_polyfit(md.leftLane.points, self._path_pinv)  # left line
+      r_poly = model_polyfit(md.rightLane.points, self._path_pinv)  # right line
       p_poly = model_polyfit(md.path.points, self._path_pinv)  # predicted path
 
     # only offset left and right lane lines; offsetting p_poly does not make sense
@@ -49,11 +48,6 @@ class ModelParser(object):
 
     # Find current lanewidth
     lr_prob = l_prob * r_prob
-
-    # Can't test corners if the lane probs always drop
-    #if l_prob > 0.49 and r_prob > 0.49:
-    #  l_prob = 1.0
-    #  r_prob = 1.0
 
     #self.lane_width_certainty += 0.05 * (lr_prob - self.lane_width_certainty)
     #current_lane_width = abs(l_poly[3] - r_poly[3])

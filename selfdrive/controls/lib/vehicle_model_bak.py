@@ -142,7 +142,6 @@ class VehicleModel(object):
     Returns:
       Curvature factor [rad/m]
     """
-    print "curvature:", self.curvature_factor(u) * sa / self.sR
     return self.curvature_factor(u) * sa / self.sR
 
   def curvature_factor(self, u):
@@ -156,12 +155,10 @@ class VehicleModel(object):
       Curvature factor [1/m]
     """
     sf = calc_slip_factor(self)
-    print "slip_factor:", sf
-    print "curvature_factor:", (1. - self.chi) / (1. - sf * u**2) / self.l
-    return (1. - self.chi) / (1. - sf * u**2) / self.l
+    #return (1. - self.chi) / (1. - sf * u**2) / self.l
     # Other vehicles' tire stiffness numbers in interface.py will need re-factored since learner isn't used
     # Thought this was working, but now I have to set curvature manually in pathplanner to avoid solution error
-    #return (1. - self.chi) / (0.0000000001 - sf * u**2) / self.l
+    return (1. - self.chi) / (0.0000000001 - sf * u**2) / self.l
   def get_steer_from_curvature(self, curv, u):
     """Calculates the required steering wheel angle for a given curvature
 

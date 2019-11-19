@@ -62,17 +62,13 @@ class CarInterface(object):
     if candidate == CAR.PRIUS:  # PRIME
       stop_and_go = True
       ret.safetyParam = 66  # see conversion factor for STEER_TORQUE_EPS in dbc file
-      steering_resistance_factor = 0.648 #0.58  # Default is 1.0 (no modification). Lower equals stiffer. Changing this requires tire_stiffnes_factor re-tune
-      ret.wheelbase = 2.70 * steering_resistance_factor
+      ret.wheelbase = 2.70
       ret.steerRatio = 13.4   # unknown end-to-end spec
-      tire_stiffness_factor = 0.3 #0.255 #0.255-very good #0.26 #0.305 #0.293 #0.31-toohigh #0.12  #0.32 #0.45-test for freeway #0.6-seemed pretty close for slower corners  #0.645-was 0.4cFac # With new mod working, should be between 0.47 - 0.645, maybe 
-      #0.4 #0.725 # CURVATURE MOD  #11-8-19 definitely between 0.4 - 0.6. 0.49 was good 
-      #aD0.4-0.46 #AD0.3-0.44 #0.43 #0.31 #0.446 # 0.445 seems perfect, jiggling #0.43 #0.47-not quite enough #0.089  # Needs some corner testing, but somewhere 16-20 for Prime
-      ## Need a lower tS to go with lower aD, but might need a higher tS for straights
+      tire_stiffness_factor = 0.42 #AD0.3-0.44 #0.43 #0.31 #0.446 # 0.445 seems perfect, jiggling #0.43 #0.47-not quite enough #0.089  # Needs some corner testing, but somewhere 16-20 for Prime
       ret.tireStiffnessFactor = tire_stiffness_factor
       ret.mass = 3375. * CV.LB_TO_KG + STD_CARGO_KG
 
-      ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.5], [0.15]]  #0.75, 0.15 #0.6-WRONG, 0.05
+      ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.75], [0.15]]  #0.75, 0.15 #0.6-WRONG, 0.05
       ret.lateralTuning.pid.kf = 0.00006 #0.00004
 
       #ret.lateralTuning.init('indi')
@@ -81,13 +77,13 @@ class CarInterface(object):
       #ret.lateralTuning.indi.timeConstant = 1.0
       #ret.lateralTuning.indi.actuatorEffectiveness = 1.0
 
-      ret.steerActuatorDelay =  1.0 #0.7-Seemd GOOD at 45mph #0.41 turned very confidently #1.0 #0.225 #0.4 #0.3 #0.35 #0.25 #0.6 #0.9 #0.18  #0.19 / 0.2 seemed too big; turning late  #1.0 # disabled
+      ret.steerActuatorDelay = 0.225 #0.3 #0.35 #0.25 #0.6 #0.9 #0.18  #0.19 / 0.2 seemed too big; turning late  #1.0 # disabled
       ## 0.12 is better for corners but might have introduced ping pong on the freeway. I lowered path costs; it could have been that. Nope
       # Otherwise, might be able to lower actuator delay on straights
       # OR, might just need PIF-tuned again
       # Or, raise tS?
 
-      #ret.centerToFront = ret.wheelbase * 0.44
+      ret.centerToFront = ret.wheelbase * 0.44
 
     elif candidate in [CAR.RAV4, CAR.RAV4H]:
       stop_and_go = True if (candidate in CAR.RAV4H) else False

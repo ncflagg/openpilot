@@ -19,7 +19,7 @@ function launch {
   #  # Touch all files on release2 after checkout to prevent rebuild
   #  BRANCH=$(git rev-parse --abbrev-ref HEAD)
   #  if [[ "$BRANCH" == "release2" ]]; then
-  #      touch **
+  touch **
   #  fi
   #
   #  exec "${BASH_SOURCE[0]}"
