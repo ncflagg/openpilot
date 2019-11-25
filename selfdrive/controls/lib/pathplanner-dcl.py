@@ -1,14 +1,12 @@
 import os
 import math
-import numpy as np
-
-# from common.numpy_fast import clip
 from common.realtime import sec_since_boot
 from selfdrive.swaglog import cloudlog
 from selfdrive.controls.lib.lateral_mpc import libmpc_py
 from selfdrive.controls.lib.drive_helpers import MPC_COST_LAT
 from selfdrive.controls.lib.lane_planner import LanePlanner
 import selfdrive.messaging as messaging
+from selfdrive.controls.lib.curvature_learner import CurvatureLearner
 
 LOG_MPC = os.environ.get('LOG_MPC', False)
 
@@ -19,7 +17,7 @@ def calc_states_after_delay(states, v_ego, steer_angle, curvature_factor, steer_
   return states
 
 
-class PathPlanner(object):
+class PathPlanner():
   def __init__(self, CP):
     self.LP = LanePlanner()
 
@@ -27,7 +25,6 @@ class PathPlanner(object):
 
     self.setup_mpc(CP.steerRateCost)
     self.solution_invalid_cnt = 0
-    #self.path_offset_i = 0.0
     self.frame = 0
     self.curvature_offset = CurvatureLearner(debug=False)
 
@@ -59,16 +56,6 @@ class PathPlanner(object):
     # Run MPC
     self.angle_steers_des_prev = self.angle_steers_des_mpc
     VM.update_params(sm['liveParameters'].stiffnessFactor, sm['liveParameters'].steerRatio)
-    #curvature_factor = VM.curvature_factor(v_ego)
-
-    # TODO: Check for active, override, and saturation
-    # if active:
-    #   self.path_offset_i += self.LP.d_poly[3] / (60.0 * 20.0)
-    #   self.path_offset_i = clip(self.path_offset_i, -0.5,  0.5)
-    #   self.LP.d_poly[3] += self.path_offset_i
-    # else:
-    #   self.path_offset_i = 0.0
-
     if active:
       curvfac = self.curvature_offset.update(angle_steers - angle_offset, self.LP.d_poly, v_ego)
     else:
@@ -96,7 +83,7 @@ class PathPlanner(object):
     self.angle_steers_des_mpc = float(math.degrees(delta_desired * VM.sR) + angle_offset)
 
     #  Check for infeasable MPC solution
-    mpc_nans = np.any(np.isnan(list(self.mpc_solution[0].delta)))
+    mpc_nans = any(math.isnan(x) for x in self.mpc_solution[0].delta)
     t = sec_since_boot()
     if mpc_nans:
       self.libmpc.init(MPC_COST_LAT.PATH, MPC_COST_LAT.LANE, MPC_COST_LAT.HEADING, CP.steerRateCost)

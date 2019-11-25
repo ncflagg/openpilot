@@ -17,10 +17,10 @@ class MPC_COST_LAT:
 
 
 class MPC_COST_LONG:
-  TTC = 5.0
+  TTC = 3.0
   DISTANCE = 0.1
-  ACCELERATION = 10.0
-  JERK = 20.0
+  ACCELERATION = 12.0
+  JERK = 10.0
 
 
 class EventTypes:
