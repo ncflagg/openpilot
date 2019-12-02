@@ -59,6 +59,9 @@ def data_sample(CI, CC, sm, can_sock, cal_status, cal_perc, overtemp, free_space
   # Update carstate from CAN and create events
   can_strs = messaging.drain_sock_raw(can_sock, wait_for_one=True)
   CS = CI.update(CC, can_strs)
+  
+  print "type of CS:", type(CS)
+  print CS
 
   sm.update(0)
 
@@ -265,7 +268,9 @@ def state_control(frame, rcv_frame, plan, path_plan, CS, CP, state, events, v_cr
                                               v_cruise_kph, v_acc_sol, plan.vTargetFuture, a_acc_sol, CP)
   # Steering PID loop and lateral MPC
   #actuators.steer, actuators.steerAngle, lac_log = LaC.update(active, CS.vEgo, CS.steeringAngle, CS.steeringRate, CS.steeringTorqueEps, CS.steeringPressed, CP, VM, path_plan)
-  actuators.steer, actuators.steerAngle, lac_log = LaC.update(active, CS.vEgo, CS.steeringAngle, CS.steeringRate, CS.steeringTorqueEps, CS.steeringPressed, CP, VM, path_plan, CS.steeringTorque, CS.wheelSpeeds)
+
+  # Possibly get back vZSS predicted angle here
+  actuators.steer, actuators.steerAngle, vzss_angle, lac_log = LaC.update(active, CS.vEgo, CS.steeringAngle, CS.steeringRate, CS.steeringTorqueEps, CS.steeringPressed, CP, VM, path_plan, CS.steeringTorque, CS.wheelSpeeds)
 
   # Send a "steering required alert" if saturation count has reached the limit
   if LaC.sat_flag and CP.steerLimitAlert:
@@ -352,8 +357,10 @@ def data_send(sm, pm, CS, CI, CP, VM, state, events, actuators, v_cruise_kph, rk
     "active": isActive(state),
     "vEgo": CS.vEgo,
     "vEgoRaw": CS.vEgoRaw,
-    "angleSteers": CS.steeringAngle,
-    "curvature": VM.calc_curvature((CS.steeringAngle - sm['pathPlan'].angleOffset) * CV.DEG_TO_RAD, CS.vEgo),
+    #"angleSteers": CS.steeringAngle,
+    #"curvature": VM.calc_curvature((CS.steeringAngle - sm['pathPlan'].angleOffset) * CV.DEG_TO_RAD, CS.vEgo),
+    "angleSteers": vzss_angle,
+    "curvature": VM.calc_curvature((vzss_angle - sm['pathPlan'].angleOffset) * CV.DEG_TO_RAD, CS.vEgo),
     "steerOverride": CS.steeringPressed,
     "state": state,
     "engageable": not bool(get_events(events, [ET.NO_ENTRY])),
@@ -388,7 +395,7 @@ def data_send(sm, pm, CS, CI, CP, VM, state, events, actuators, v_cruise_kph, rk
   cs_send = messaging.new_message()
   cs_send.init('carState')
   cs_send.valid = CS.canValid
-  cs_send.carState = CS
+  cs_send.carState = CS        # ToDo: change this to something containing vzss
   cs_send.carState.events = events
   pm.send('carState', cs_send)
 
