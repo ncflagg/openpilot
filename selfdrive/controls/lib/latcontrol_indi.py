@@ -19,6 +19,7 @@ def mean(numbers):
 class LatControlINDI(object):
   def __init__(self, CP):
     self.angle_steers_des = 0.
+    self.angle_steers_vzss = 0.
 
     A = np.matrix([[1.0, DT_CTRL, 0.0],
                    [0.0, 1.0, DT_CTRL],
@@ -89,6 +90,7 @@ class LatControlINDI(object):
     stock_angle = float(angle_steers)
     if self.ZSS.can_predict():
       angle_steers = self.ZSS.predict()
+      self.angle_steers_vzss = self.ZSS.predict()
 
     self.ZSS.save_sample([stock_angle, self.output_steer, wheel_speeds.fl, wheel_speeds.fr, wheel_speeds.rl, wheel_speeds.rr])
 
@@ -160,4 +162,4 @@ class LatControlINDI(object):
       indi_log.output = float(self.output_steer)
 
     self.sat_flag = False
-    return float(self.output_steer), float(self.angle_steers_des), float(angle_steers), indi_log
+    return float(self.output_steer), float(self.angle_steers_des), float(self.angle_steers_vzss), indi_log
