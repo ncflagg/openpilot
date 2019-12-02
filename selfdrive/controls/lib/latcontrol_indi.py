@@ -162,4 +162,4 @@ class LatControlINDI(object):
       indi_log.output = float(self.output_steer)
 
     self.sat_flag = False
-    return float(self.output_steer), float(self.angle_steers_des), float(self.angle_steers_vzss), indi_log
+    return float(self.output_steer), float(self.angle_steers_des), indi_log

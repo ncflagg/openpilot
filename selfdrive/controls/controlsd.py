@@ -264,10 +264,10 @@ def state_control(frame, rcv_frame, plan, path_plan, CS, CP, state, events, v_cr
   actuators.gas, actuators.brake = LoC.update(active, CS.vEgo, CS.brakePressed, CS.standstill, CS.cruiseState.standstill,
                                               v_cruise_kph, v_acc_sol, plan.vTargetFuture, a_acc_sol, CP)
   # Steering PID loop and lateral MPC
-  #actuators.steer, actuators.steerAngle, lac_log = LaC.update(active, CS.vEgo, CS.steeringAngle, CS.steeringRate, CS.steeringTorqueEps, CS.steeringPressed, CP, VM, path_plan)
+  actuators.steer, actuators.steerAngle, lac_log = LaC.update(active, CS.vEgo, CS.steeringAngle, CS.steeringRate, CS.steeringTorqueEps, CS.steeringPressed, CP, VM, path_plan)
 
-  # Possibly get back vzss predicted angle here
-  actuators.steer, actuators.steerAngle, vzss, lac_log = LaC.update(active, CS.vEgo, CS.steeringAngle, CS.steeringRate, CS.steeringTorqueEps, CS.steeringPressed, CP, VM, path_plan, CS.steeringTorque, CS.wheelSpeeds)
+  # Acquire vzss predicted angle here
+  #actuators.steer, actuators.steerAngle, vzss, lac_log = LaC.update(active, CS.vEgo, CS.steeringAngle, CS.steeringRate, CS.steeringTorqueEps, CS.steeringPressed, CP, VM, path_plan, CS.steeringTorque, CS.wheelSpeeds)
 
   # Send a "steering required alert" if saturation count has reached the limit
   if LaC.sat_flag and CP.steerLimitAlert:
@@ -286,7 +286,7 @@ def state_control(frame, rcv_frame, plan, path_plan, CS, CP, state, events, v_cr
 
   AM.process_alerts(frame)
 
-  return actuators, v_cruise_kph, driver_status, v_acc_sol, a_acc_sol, vzss, lac_log
+  return actuators, v_cruise_kph, driver_status, v_acc_sol, a_acc_sol, lac_log
 
 
 def data_send(sm, pm, CS, CI, CP, VM, state, events, actuators, v_cruise_kph, rk, AM,
@@ -356,6 +356,7 @@ def data_send(sm, pm, CS, CI, CP, VM, state, events, actuators, v_cruise_kph, rk
     "vEgoRaw": CS.vEgoRaw,
     #"angleSteers": CS.steeringAngle,
     #"curvature": VM.calc_curvature((CS.steeringAngle - sm['pathPlan'].angleOffset) * CV.DEG_TO_RAD, CS.vEgo),
+    # Send controlState with vzss instead of TSS1 angle
     "angleSteers": float(LaC.angle_steers_vzss),
     "curvature": VM.calc_curvature((LaC.angle_steers_vzss - sm['pathPlan'].angleOffset) * CV.DEG_TO_RAD, CS.vEgo),
     "steerOverride": CS.steeringPressed,
@@ -389,10 +390,18 @@ def data_send(sm, pm, CS, CI, CP, VM, state, events, actuators, v_cruise_kph, rk
   pm.send('controlsState', dat)
 
   # carState
+  # Modify and send carState with vzss instead of TSS1 angle
+  CS_vzss = ''
+  for line in CS.splitlines():
+    if "steeringAngle" in line:
+      CS_vzss += "  steeringAngle = " + str(LaC.angle_steers_vzss) + ",\n"
+    else:
+      CS_vzss += line + "\n"
   cs_send = messaging.new_message()
   cs_send.init('carState')
   cs_send.valid = CS.canValid
-  cs_send.carState = CS        # ToDo: change this to something containing vzss
+  #cs_send.carState = CS
+  cs_send.carState = CS_vzss
   cs_send.carState.events = events
   pm.send('carState', cs_send)
 
@@ -547,20 +556,10 @@ def controlsd_thread(sm=None, pm=None, can_sock=None):
         state_transition(sm.frame, CS, CP, state, events, soft_disable_timer, v_cruise_kph, AM)
       prof.checkpoint("State transition")
 
-    # Compute actuators (runs PID loops and lateral MPC) and returns vzss
-    actuators, v_cruise_kph, driver_status, v_acc, a_acc, vzss, lac_log = \
+    # Compute actuators (runs PID loops and lateral MPC)
+    actuators, v_cruise_kph, driver_status, v_acc, a_acc, lac_log = \
       state_control(sm.frame, sm.rcv_frame, sm['plan'], sm['pathPlan'], CS, CP, state, events, v_cruise_kph, v_cruise_kph_last, AM, rk,
                     driver_status, LaC, LoC, VM, read_only, is_metric, cal_perc)
-
-    CS_vzss = CS
-    CS_vzssStr = str(CS)
-
-    print "type(CS_vzss):", type(CS_vzss)
-    print "", CS_vzss
-
-    print "type(CS_vzssStr):", type(CS_vzssStr)
-    print "", CS_vzssStr
-
 
     prof.checkpoint("State Control")
 
