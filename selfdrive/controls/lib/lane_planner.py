@@ -1,7 +1,9 @@
 from common.numpy_fast import interp
 import numpy as np
+from selfdrive.op_params import opParams
 
-CAMERA_OFFSET = 0.06  # m from center car to camera
+op_params = opParams()
+CAMERA_OFFSET = float(op_params.get('cameraOffset', 0.06))  # m from center car to camera
 
 def mean(numbers):
     return float(sum(numbers)) / max(len(numbers), 1)
@@ -82,8 +84,8 @@ class LanePlanner():
                 self.readings.pop(0)
 
     # Don't exit dive
-    if abs(self.l_poly[3] - self.r_poly[3]) > self.lane_width:
-        self.r_prob = self.r_prob / interp(self.l_prob, [0, 1], [1, 3])
+    #if abs(self.l_poly[3] - self.r_poly[3]) > self.lane_width:
+    #    self.r_prob = self.r_prob / interp(self.l_prob, [0, 1], [1, 3])
 
     self.d_poly = calc_d_poly(self.l_poly, self.r_poly, self.p_poly, self.l_prob, self.r_prob, self.lane_width)
 

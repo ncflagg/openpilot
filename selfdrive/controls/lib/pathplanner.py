@@ -29,8 +29,13 @@ class PathPlanner(object):
     self.setup_mpc(CP.steerRateCost)
     self.solution_invalid_cnt = 0
     #self.path_offset_i = 0.0
+
+    self.aDelay = 0.0
+    self.delay_switch_time = 0.0
+
     self.frame = 0
     self.curvature_offset = CurvatureLearner(debug=False)
+
 
   def setup_mpc(self, steer_rate_cost):
     self.libmpc = libmpc_py.libmpc
@@ -55,12 +60,46 @@ class PathPlanner(object):
 
     angle_offset = sm['liveParameters'].angleOffset
 
+    # Gernby: prevent over-inflation of desired angle
+    # https://github.com/commaai/openpilot/pull/700/files
+    # Doesn't look like it would do anything in 0.6.4 though; needs review
+    if abs(self.angle_steers_des_mpc - self.angle_steers_des_prev) > abs(angle_steers - self.angle_steers_des_prev):
+      self.cur_state[0].delta = math.radians(angle_steers - angle_offset) / VM.sR
+
     self.LP.update(v_ego, sm['model'])
 
     # Run MPC
     self.angle_steers_des_prev = self.angle_steers_des_mpc
     VM.update_params(sm['liveParameters'].stiffnessFactor, sm['liveParameters'].steerRatio)
-    #curvature_factor = VM.curvature_factor(v_ego)
+
+    curvature_factor = VM.curvature_factor(v_ego)
+
+
+    steerRatio = 13.4
+    if self.aDelay == 0.0:
+      self.aDelay = CP.steerActuatorDelay
+
+    # Interp between two points I think are good
+    #curvature_factor = np.interp(v_ego, [0., 31.5], [0.5495, 0.1])
+    #curvature_factor = np.interp(v_ego, [12.07, 28.16], [0.375, 0.175])
+    #curvature_factor = np.interp(v_ego, [12.07, 29.95], [0.39, 0.144])
+    #  12.07/26mph - 0.37726
+    #  28.16/66mph - 0.1476
+
+    curve = abs(self.LP.l_poly[1]) > 0.00003  or  abs(self.LP.r_poly[1]) > 0.00003
+      #or  abs(self.LP.d_poly[3]) > 0.09  # If too far out of line
+
+    if curve:
+      # Tune for curves
+      self.aDelay = 0.26
+      self.delay_switch_time = 0.26 + sec_since_boot()
+    else:
+      # Tune for straights
+      #steerRatio = 9.0
+      if self.delay_switch_time < sec_since_boot():  # Don't switch if it's recently changed
+        self.aDelay = 0.5 #CP.steerActuatorDelay    # 1.0 made it hug to the RIGHT a little
+        #curvature_factor = 0.5
+
 
     # TODO: Check for active, override, and saturation
     # if active:
@@ -70,16 +109,28 @@ class PathPlanner(object):
     # else:
     #   self.path_offset_i = 0.0
 
-    if active:
-      curvfac = self.curvature_offset.update(angle_steers - angle_offset, self.LP.d_poly, v_ego)
-    else:
-      curvfac = 0.
-    curvature_factor = VM.curvature_factor(v_ego) + curvfac
+    #if active:
+    #  curvfac = self.curvature_offset.update(angle_steers - angle_offset, self.LP.d_poly, v_ego)
+    #  print "angle_steers:", angle_steers, "ao:", angle_offset, "dpoly:", self.LP.d_poly, "dp3:", self.LP.d_poly[3], "speed:", v_ego
+    #else:
+    #  curvfac = 0.
+    #curvature_factor = VM.curvature_factor(v_ego) + curvfac
 
     # account for actuation delay
-    self.cur_state = calc_states_after_delay(self.cur_state, v_ego, angle_steers - angle_offset, curvature_factor, VM.sR, CP.steerActuatorDelay)
+    #self.cur_state = calc_states_after_delay(self.cur_state, v_ego, angle_steers - angle_offset, curvature_factor, VM.sR, CP.steerActuatorDelay)
+    self.cur_state = calc_states_after_delay(self.cur_state, v_ego, angle_steers - angle_offset, curvature_factor, VM.sR, self.aDelay)
 
     v_ego_mpc = max(v_ego, 5.0)  # avoid mpc roughness due to low speed
+
+    #print "cur_state:", self.cur_state
+    print "seconds:", round(sec_since_boot(), 2)
+    print "angle", angle_steers, "f_offset:", angle_offset, "curv:", curvature_factor, "tS:", sm['liveParameters'].stiffnessFactor
+    print "d_poly3:", self.LP.d_poly[3], "lProb:", self.LP.l_prob, "rProb:", self.LP.r_prob, "veMpc:", v_ego_mpc, "lWidth:", self.LP.lane_width
+    print "aDesMpc:", self.angle_steers_des_mpc, "aD", self.aDelay
+    # "l_poly:", self.LP.l_poly, "r_poly:", self.LP.r_poly, "p_poly:"    , self.LP.p_poly,
+    #print "Corner?:", corner
+    #"c_poly3:", self.LP.c_poly[3]
+
     self.libmpc.run_mpc(self.cur_state, self.mpc_solution,
                         list(self.LP.l_poly), list(self.LP.r_poly), list(self.LP.d_poly),
                         self.LP.l_prob, self.LP.r_prob, curvature_factor, v_ego_mpc, self.LP.lane_width)

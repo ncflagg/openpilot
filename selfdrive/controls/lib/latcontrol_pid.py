@@ -37,6 +37,11 @@ class LatControlPID(object):
       deadzone = 0.0
       output_steer = self.pid.update(self.angle_steers_des, angle_steers, check_saturation=(v_ego > 10), override=steer_override,
                                      feedforward=steer_feedforward, speed=v_ego, deadzone=deadzone)
+
+      print "seconds:", round(sec_since_boot(), 2), "mph:", int(round(v_ego * 2.237, 1)), "a_des", round(self.angle_steers_des, 2), "TSS1:", round(self.TSS1, 2), "vZSS:", round(angle_steers, 2), "o_steer:", output_steer
+      #"os_smooth", self.output_steer_smoothed
+
+
       pid_log.active = True
       pid_log.p = self.pid.p
       pid_log.i = self.pid.i

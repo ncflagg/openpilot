@@ -56,7 +56,9 @@ class CurvatureLearner:
         self.offset = clip(self.offset, -0.3, 0.3)
         self.frame += 1
 
-        if self.frame == 12000:  # every 2 mins
+        print "frame:", self.frame
+
+        if self.frame > 200:  # every 2 mins
             with open("/data/curvaturev4.json", "w") as f:
                 json.dump(self.learned_offsets, f)
             self.frame = 0

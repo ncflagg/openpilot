@@ -148,11 +148,13 @@ class Planner(object):
 
       a_y_max = 2.975 - v_ego * 0.0375  # ~1.85 @ 75mph, ~2.6 @ 25mph
       v_curvature = np.sqrt(a_y_max / np.clip(np.abs(curv), 1e-4, None))
-      model_speed = np.min(v_curvature)
+
+      # Don't slow for curves
+      #model_speed = np.min(v_curvature)
       # print(model_speed * CV.MS_TO_MPH, model_speed)
-      model_speed = max(20.0 * CV.MPH_TO_MS, model_speed) # Don't slow down below 20mph
-    else:
-      model_speed = MAX_SPEED
+      #model_speed = max(20.0 * CV.MPH_TO_MS, model_speed) # Don't slow down below 20mph
+    #else:
+    model_speed = MAX_SPEED
 
     # Calculate speed for normal cruise control
     if enabled:

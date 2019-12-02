@@ -7,6 +7,13 @@ from common.numpy_fast import clip
 from selfdrive.car.toyota.carcontroller import SteerLimitParams
 from selfdrive.car import apply_toyota_steer_torque_limits
 from selfdrive.controls.lib.drive_helpers import get_steer_max
+from selfdrive.virtualZSS import virtualZSS_class
+from selfdrive.kegman_conf import kegman_conf
+from common.realtime import sec_since_boot
+
+
+def mean(numbers):
+  return float(sum(numbers)) / max(len(numbers), 1)
 
 
 class LatControlINDI(object):
@@ -40,6 +47,13 @@ class LatControlINDI(object):
     self.inner_loop_gain = CP.lateralTuning.indi.innerLoopGain
     self.alpha = 1. - DT_CTRL / (self.RC + DT_CTRL)
 
+    self.ZSS = virtualZSS_class.vZSS()
+    self.output_steer = 0
+    self.readings = []
+    # Live Tuning variable init
+    kegman = kegman_conf(CP)
+    self.mpc_frame = 0
+
     self.reset()
 
   def reset(self):
@@ -47,7 +61,47 @@ class LatControlINDI(object):
     self.output_steer = 0.
     self.counter = 0
 
-  def update(self, active, v_ego, angle_steers, angle_steers_rate, eps_torque, steer_override, CP, VM, path_plan):
+
+  # Live tuning
+  def live_tune(self, CP):
+    self.mpc_frame += 1
+    if self.mpc_frame % 300 == 0:
+      # live tuning through /data/openpilot/tune.py overrides interface.py settings
+      kegman = kegman_conf()
+      if True:
+        # Get values
+        self.timeConstant = float(kegman.conf['timeConstant'])
+        self.actuatorEffectiveness = float(kegman.conf['actuatorEffectiveness'])
+        self.outerLoopGain = float(kegman.conf['outerLoopGain'])
+        self.innerLoopGain = float(kegman.conf['innerLoopGain'])
+
+        # Set values
+        self.RC = self.timeConstant
+        self.G = self.actuatorEffectiveness
+        self.outer_loop_gain = self.outerLoopGain
+        self.inner_loop_gain = self.innerLoopGain
+        self.alpha = 1. - DT_CTRL / (self.RC + DT_CTRL)
+
+      self.mpc_frame = 0
+
+  def update(self, active, v_ego, angle_steers, angle_steers_rate, eps_torque, steer_override, CP, VM, path_plan, driver_torque, wheel_speeds):
+    #virtualZSS
+    stock_angle = float(angle_steers)
+    if self.ZSS.can_predict():
+      angle_steers = self.ZSS.predict()
+
+    self.ZSS.save_sample([stock_angle, self.output_steer, wheel_speeds.fl, wheel_speeds.fr, wheel_speeds.rl, wheel_speeds.rr])
+
+    # smooth angle
+    #max_samples = 20
+    #self.readings.append(angle_steers)
+    #angle_steers = round(mean(self.readings), 2)
+    #if len(self.readings) == max_samples:
+    #    self.readings.pop(0)
+
+    # Trigger Live tuning
+    self.live_tune(CP)
+
     # Update Kalman filter
     y = np.matrix([[math.radians(angle_steers)], [math.radians(angle_steers_rate)]])
     self.x = np.dot(self.A_K, self.x) + np.dot(self.K, y)
@@ -62,7 +116,7 @@ class LatControlINDI(object):
       self.output_steer = 0.0
       self.delayed_output = 0.0
     else:
-      self.angle_steers_des = path_plan.angleSteers
+      self.angle_steers_des = round(path_plan.angleSteers, 2)
       self.rate_steers_des = path_plan.rateSteers
 
       steers_des = math.radians(self.angle_steers_des)
@@ -92,6 +146,10 @@ class LatControlINDI(object):
 
       steers_max = get_steer_max(CP, v_ego)
       self.output_steer = clip(self.output_steer, -steers_max, steers_max)
+
+      print "seconds:", round(sec_since_boot(), 2), "mph:", int(round(v_ego * 2.237, 1)), "a_des", round(self.angle_steers_des, 2), "TSS1:", round(stock_angle, 2), "vZSS:", round(angle_steers, 2), "o_steer:", self.output_steer
+      #"os_smooth", self.output_steer_smoothed
+
 
       indi_log.active = True
       indi_log.rateSetPoint = float(rate_sp)
