@@ -28,6 +28,7 @@ from selfdrive.controls.lib.driver_monitor import DriverStatus, MAX_TERMINAL_ALE
 from selfdrive.controls.lib.planner import LON_MPC_STEP
 from selfdrive.controls.lib.gps_helpers import is_rhd_region
 from selfdrive.locationd.calibration_helpers import Calibration, Filter
+import ast
 
 ThermalStatus = log.ThermalData.ThermalStatus
 State = log.ControlsState.OpenpilotState
@@ -405,34 +406,54 @@ def data_send(sm, pm, CS, CI, CP, VM, state, events, actuators, v_cruise_kph, rk
   # No, needs capnp updates:
   #  AttributeError: capnp/schema.c++:486: failed: struct has no such member; name = steeringAngle
   #cs_send.steeringAngle = LaC.angle_steers_vzss
-  cs_send.carState = CS
+  #cs_send.carState = CS
+
+
 
   CS_transform = '{'
   CS_vzss = str(CS)
-  for line in CS_vzss[1:][:-1].splitlines():
+
+  for line in CS_vzss[1:].splitlines():
     indent = len(line) - len(line.lstrip(" "))
     line = line.rstrip()
+    #print line
+    if "steeringAngle" in line:
+      line = line.split('=')[0] + "= " + angle + ","
+    if line[-2:] == " )":
+      line = ",".join(line.rsplit(" )", 1))
     if line[-1:] in ["(", ")", "[", "]"]:
-      n = '"' + line.lstrip().replace(" =",'":', 1)
+      n = '"' + line.lstrip().replace(" =", '":', 1)
       n = '"['.join(n.rsplit('[', 1))
       n = ']"'.join(n.rsplit(']', 1))
       n = '"('.join(n.rsplit('(', 1))
       n = ')"'.join(n.rsplit(')', 1))
+      #print n
     elif indent < 3:
-      if line[-1:] == ')':
+      if line[-1:] == ")":
         n = '")'.join(line.rsplit(' )', 1)).lstrip()
+        #print n
       else:
         n = '"' + line.lstrip().replace(" = ", '": "', 1)
         n = '",'.join(n.rsplit(',', 1))
+        #print n
     elif indent == 4:
       n = line.replace(")", ')"', 1)
       n = n.lstrip()
+      #print n
     else:
       n = line.lstrip()
+      print "ELSE ELSE                         ELSE ELSE"
+    #print n
     CS_transform += n
-  CS_transform += ",}"
+  CS_transform += "}"
+  #print "type CS_transform:", type(CS_transform)
+  #myDict = dict(CS_transform)
+  myDict = ast.literal_eval(CS_transform)
+  print "type myDict:", type(myDict)
 
-  #cs_send.carState = CS_transform
+
+
+  cs_send.carState = myDict
   cs_send.carState.events = events  # Seems like it's doing this twice
   pm.send('carState', cs_send)
 
