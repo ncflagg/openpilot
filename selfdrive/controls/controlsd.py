@@ -379,6 +379,9 @@ def data_send(sm, pm, CS, CI, CP, VM, state, events, actuators, v_cruise_kph, rk
     "forceDecel": bool(force_decel),
   }
 
+  print "controlState type:", type(dat.controlsState)
+  print "controlState:", dat.controlsState
+
   if CP.lateralTuning.which() == 'pid':
     dat.controlsState.lateralControlState.pidState = lac_log
   elif CP.lateralTuning.which() == 'lqr':
@@ -389,18 +392,48 @@ def data_send(sm, pm, CS, CI, CP, VM, state, events, actuators, v_cruise_kph, rk
 
   # carState
   # Modify and send carState with vzss instead of TSS1 angle
-  CS_vzss = ''
-  for line in CS.splitlines():
-    if "steeringAngle" in line:
-      CS_vzss += "  steeringAngle = " + str(LaC.angle_steers_vzss) + ",\n"
-    else:
-      CS_vzss += line + "\n"
+  #CS_vzss = str(CS)
+  #for line in CS_vzss.splitlines():
+  #  if "steeringAngle" in line:
+  #    CS_vzss += "  steeringAngle = " + str(LaC.angle_steers_vzss) + ",\n"
+  #  else:
+  #    CS_vzss += line + "\n"
   cs_send = messaging.new_message()
   cs_send.init('carState')
   cs_send.valid = CS.canValid
-  #cs_send.carState = CS
-  cs_send.carState = CS_vzss
-  cs_send.carState.events = events
+  # Uno momento, can I just update it like this?
+  # No, needs capnp updates:
+  #  AttributeError: capnp/schema.c++:486: failed: struct has no such member; name = steeringAngle
+  #cs_send.steeringAngle = LaC.angle_steers_vzss
+  cs_send.carState = CS
+
+  CS_transform = '{'
+  CS_vzss = str(CS)
+  for line in CS_vzss[1:][:-1].splitlines():
+    indent = len(line) - len(line.lstrip(" "))
+    line = line.rstrip()
+    if line[-1:] in ["(", ")", "[", "]"]:
+      n = '"' + line.lstrip().replace(" =",'":', 1)
+      n = '"['.join(n.rsplit('[', 1))
+      n = ']"'.join(n.rsplit(']', 1))
+      n = '"('.join(n.rsplit('(', 1))
+      n = ')"'.join(n.rsplit(')', 1))
+    elif indent < 3:
+      if line[-1:] == ')':
+        n = '")'.join(line.rsplit(' )', 1)).lstrip()
+      else:
+        n = '"' + line.lstrip().replace(" = ", '": "', 1)
+        n = '",'.join(n.rsplit(',', 1))
+    elif indent == 4:
+      n = line.replace(")", ')"', 1)
+      n = n.lstrip()
+    else:
+      n = line.lstrip()
+    CS_transform += n
+  CS_transform += ",}"
+
+  #cs_send.carState = CS_transform
+  cs_send.carState.events = events  # Seems like it's doing this twice
   pm.send('carState', cs_send)
 
   # carEvents - logged every second or on change
